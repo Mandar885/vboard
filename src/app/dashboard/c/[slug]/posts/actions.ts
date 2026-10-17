@@ -8,6 +8,7 @@ import {
   createPost,
   deletePost,
   getPostById,
+  setAdvisorApproval,
   setPostPinned,
   setPostStatus,
   updatePost,
@@ -18,8 +19,13 @@ import {
 } from "@/db/queries/registrations"
 import { firstIssue, postFormSchema } from "@/db/validations"
 import { done, fail, type ActionResult } from "@/lib/action-result"
+import { isSiteAdmin, needsAdvisorApproval } from "@/lib/rbac"
 import { randomSuffix, uniqueSlug } from "@/lib/slug"
-import { actionCommunityAccess, type CommunityAccess } from "@/lib/session"
+import {
+  actionCommunityAccess,
+  actionPostAccess,
+  type CommunityAccess,
+} from "@/lib/session"
 
 function readPostForm(formData: FormData) {
   const get = (key: string) => String(formData.get(key) ?? "")
@@ -66,6 +72,14 @@ export async function createPostAction(
   if (!parsed.success) return fail(firstIssue(parsed.error))
   const { intent, ...data } = parsed.data
   const publish = intent === "publish" && access.can("post:publish")
+  if (
+    publish &&
+    needsAdvisorApproval(data) &&
+    !isSiteAdmin(access.user.siteRole)
+  )
+    return fail(
+      "Events for 80 or more people need an advisor's approval before they are published."
+    )
 
   const created = await createPost({
     ...data,
@@ -90,7 +104,11 @@ export async function updatePostAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(formData.get("slug"), "post:write")
+  const access = await actionPostAccess(
+    formData.get("slug"),
+    formData.get("postId"),
+    "post:write"
+  )
   if (!access) return fail("You cannot edit posts in this community.")
   const post = await postInCommunity(access, formData.get("postId"))
   if (!post) return fail("Post not found.")
@@ -119,13 +137,23 @@ export async function setPostStatusAction(
     .enum(["published", "draft", "cancelled", "completed"])
     .safeParse(formData.get("status"))
   if (!status.success) return fail("Unknown status.")
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:publish"
   )
   if (!access) return fail("You cannot change this post.")
   const post = await postInCommunity(access, formData.get("postId"))
   if (!post) return fail("Post not found.")
+  if (
+    status.data === "published" &&
+    needsAdvisorApproval(post) &&
+    !post.advisorApprovedBy &&
+    !isSiteAdmin(access.user.siteRole)
+  )
+    return fail(
+      "Events for 80 or more people need an advisor's approval before they are published."
+    )
 
   await setPostStatus(post.id, status.data)
   await createAuditLog({
@@ -146,8 +174,9 @@ export async function togglePinAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:publish"
   )
   if (!access) return fail("You cannot pin posts here.")
@@ -162,8 +191,9 @@ export async function deletePostAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:delete"
   )
   if (!access) return fail("You cannot delete posts here.")

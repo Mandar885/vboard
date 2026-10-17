@@ -8,7 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core"
 import { user } from "./auth"
-import { communityRoleEnum } from "./enums"
+import { communityApprovalEnum, communityRoleEnum } from "./enums"
 
 export const community = pgTable("community", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -17,6 +17,10 @@ export const community = pgTable("community", {
   description: text("description").notNull().default(""),
   logoUrl: text("logo_url"),
   coverImageUrl: text("cover_image_url"),
+  department: text("department"),
+  approvalStatus: communityApprovalEnum("approval_status")
+    .notNull()
+    .default("approved"),
   isActive: boolean("is_active").notNull().default(true),
   createdBy: text("created_by").references(() => user.id, {
     onDelete: "set null",

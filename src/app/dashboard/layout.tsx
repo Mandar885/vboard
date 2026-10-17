@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import {
   AppSidebar,
   type SidebarSection,
@@ -32,6 +33,12 @@ export default async function DashboardLayout({
         { title: "Profile", url: "/dashboard/profile", icon: "profile" },
       ],
     },
+    {
+      label: "Events",
+      items: [
+        { title: "All events", url: "/dashboard/events", icon: "events" },
+      ],
+    },
   ]
   if (user.memberships.length > 0) {
     sections.push({
@@ -63,8 +70,11 @@ export default async function DashboardLayout({
   const communities = isAdmin ? await listAllCommunities() : user.memberships
   for (const c of communities) names[c.slug] = c.name
 
+  const sidebarOpen = (await cookies()).get("sidebar_state")?.value !== "false"
+
   return (
     <SidebarProvider
+      defaultOpen={sidebarOpen}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 64)",

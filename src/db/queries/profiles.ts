@@ -38,6 +38,19 @@ export async function getUserByEmail(email: string) {
   return row ?? null
 }
 
+export async function setAdminDepartment(
+  userId: string,
+  adminDepartment: string | null
+) {
+  await db
+    .insert(profile)
+    .values({ userId, adminDepartment })
+    .onConflictDoUpdate({
+      target: profile.userId,
+      set: { adminDepartment, updatedAt: new Date() },
+    })
+}
+
 export async function setSiteRole(
   userId: string,
   siteRole: "admin" | "student"

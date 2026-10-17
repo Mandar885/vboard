@@ -45,6 +45,10 @@ export const post = pgTable(
     }),
     capacity: integer("capacity"),
     requiresApproval: boolean("requires_approval").notNull().default(false),
+    advisorApprovedAt: timestamp("advisor_approved_at", { withTimezone: true }),
+    advisorApprovedBy: text("advisor_approved_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

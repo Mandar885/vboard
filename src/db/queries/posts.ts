@@ -1,4 +1,16 @@
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm"
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm"
 import { db } from "@/db"
 import { community, post, registration, user } from "@/db/schema"
 
@@ -160,6 +172,17 @@ export async function updatePost(id: string, data: PostInput) {
     .where(eq(post.id, id))
 }
 
+export async function setAdvisorApproval(id: string, approvedBy: string) {
+  await db
+    .update(post)
+    .set({
+      advisorApprovedBy: approvedBy,
+      advisorApprovedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(post.id, id))
+}
+
 export async function setPostStatus(
   id: string,
   status: "draft" | "published" | "cancelled" | "completed" | "hidden"
@@ -172,6 +195,67 @@ export async function setPostStatus(
 
 export async function deletePost(id: string) {
   await db.delete(post).where(eq(post.id, id))
+}
+
+const PRIVATE_STATUSES = ["draft", "cancelled", "completed", "hidden"] as const
+
+export type DashboardEventWhen = "all" | "upcoming" | "past"
+export type DashboardEventStatus =
+  "all" | (typeof PRIVATE_STATUSES)[number] | "published"
+
+export async function listDashboardEvents(opts: {
+  seeAll: boolean
+  readableCommunityIds: string[]
+  q: string
+  communitySlug: string | null
+  when: DashboardEventWhen
+  status: DashboardEventStatus
+  now: Date
+}) {
+  const term = opts.q.trim().replace(/[%_]/g, "")
+  const privateScope =
+    !opts.seeAll && opts.readableCommunityIds.length > 0
+      ? and(
+          inArray(post.communityId, opts.readableCommunityIds),
+          inArray(post.status, [...PRIVATE_STATUSES])
+        )
+      : undefined
+  const visibility = opts.seeAll
+    ? undefined
+    : privateScope
+      ? or(eq(post.status, "published"), privateScope)
+      : eq(post.status, "published")
+
+  return db
+    .select({
+      id: post.id,
+      slug: post.slug,
+      title: post.title,
+      status: post.status,
+      startsAt: post.startsAt,
+      endsAt: post.endsAt,
+      capacity: post.capacity,
+      communityId: community.id,
+      communitySlug: community.slug,
+      communityName: community.name,
+      seatsTaken,
+    })
+    .from(post)
+    .innerJoin(community, eq(community.id, post.communityId))
+    .where(
+      and(
+        eq(post.isEvent, true),
+        eq(community.isActive, true),
+        visibility,
+        opts.when === "upcoming" ? gte(post.endsAt, opts.now) : undefined,
+        opts.when === "past" ? lt(post.endsAt, opts.now) : undefined,
+        opts.status === "all" ? undefined : eq(post.status, opts.status),
+        opts.communitySlug ? eq(community.slug, opts.communitySlug) : undefined,
+        term ? ilike(post.title, `%${term}%`) : undefined
+      )
+    )
+    .orderBy(opts.when === "past" ? desc(post.startsAt) : asc(post.startsAt))
+    .limit(200)
 }
 
 export async function listUpcomingEventsForCommunities(

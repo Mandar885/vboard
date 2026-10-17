@@ -11,12 +11,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   registrations: "My registrations",
+  events: "All events",
   profile: "Profile",
   admin: "Admin",
   communities: "Communities",
@@ -49,7 +51,7 @@ export function SiteHeader({ names }: { names: Record<string, string> }) {
           orientation="vertical"
           className="mx-2 h-4 data-vertical:self-auto"
         />
-        <Breadcrumb>
+        <Breadcrumb className="min-w-0 flex-1">
           <BreadcrumbList>
             {crumbs.map((c, i) => (
               <Fragment key={c.href}>
@@ -67,6 +69,7 @@ export function SiteHeader({ names }: { names: Record<string, string> }) {
             ))}
           </BreadcrumbList>
         </Breadcrumb>
+        <ThemeToggle variant="dashboard" className="ml-auto shrink-0" />
       </div>
     </header>
   )

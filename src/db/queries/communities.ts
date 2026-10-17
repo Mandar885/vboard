@@ -41,6 +41,9 @@ export async function listAllCommunities() {
       slug: community.slug,
       name: community.name,
       isActive: community.isActive,
+      department: community.department,
+      approvalStatus: community.approvalStatus,
+      createdBy: community.createdBy,
       createdAt: community.createdAt,
       postCount,
       teamCount,
@@ -75,9 +78,23 @@ export async function createCommunity(data: {
   name: string
   description: string
   createdBy: string
+  department?: string | null
+  approvalStatus?: "pending" | "approved"
+  isActive?: boolean
 }) {
   const [row] = await db.insert(community).values(data).returning()
   return row
+}
+
+export async function approveCommunity(id: string) {
+  await db
+    .update(community)
+    .set({
+      approvalStatus: "approved",
+      isActive: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(community.id, id))
 }
 
 export async function updateCommunity(

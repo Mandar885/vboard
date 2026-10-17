@@ -4,7 +4,6 @@ import {
   CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -37,7 +36,7 @@ export function PageHeader({
 
 export function SectionCards({ children }: { children: React.ReactNode }) {
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {children}
     </div>
   )
@@ -57,21 +56,19 @@ export function StatCard({
   hint?: string
 }) {
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {value}
-        </CardTitle>
-        {badge && <CardAction>{badge}</CardAction>}
-      </CardHeader>
-      {(footer || hint) && (
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          {footer && <div className="line-clamp-1 font-medium">{footer}</div>}
-          {hint && <div className="text-muted-foreground">{hint}</div>}
-        </CardFooter>
+    <div className="bg-card text-card-foreground ring-foreground/10 rounded-lg p-4 ring-1">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        {badge}
+      </div>
+      <div className="mt-1.5 text-2xl leading-none font-semibold tracking-tight tabular-nums">
+        {value}
+      </div>
+      {footer && (
+        <p className="text-muted-foreground mt-1.5 text-xs">{footer}</p>
       )}
-    </Card>
+      {hint && <p className="text-muted-foreground mt-1.5 text-xs">{hint}</p>}
+    </div>
   )
 }
 
@@ -114,9 +111,13 @@ export function EmptyState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <div className="text-sm font-medium">{title}</div>
-      {body && <p className="text-muted-foreground max-w-sm text-sm">{body}</p>}
+    <div className="flex flex-col items-center gap-1.5 px-6 py-8 text-center">
+      <p className="text-sm font-medium">{title}</p>
+      {body && (
+        <p className="text-muted-foreground max-w-sm text-xs text-balance">
+          {body}
+        </p>
+      )}
       {action && <div className="mt-2">{action}</div>}
     </div>
   )

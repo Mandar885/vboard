@@ -11,6 +11,7 @@ export const profile = pgTable(
     siteRole: siteRoleEnum("site_role").notNull().default("student"),
     rollNumber: text("roll_number"),
     department: text("department"),
+    adminDepartment: text("admin_department"),
     bio: text("bio"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

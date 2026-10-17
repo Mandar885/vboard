@@ -1,5 +1,5 @@
 export type SiteRole = "super_admin" | "admin" | "student"
-export type CommunityRole = "lead" | "manager" | "volunteer"
+export type CommunityRole = "lead" | "manager" | "volunteer" | "advisor"
 
 export type SiteCapability =
   | "admin:manage"
@@ -22,6 +22,7 @@ export type CommunityCapability =
   | "registration:decide"
   | "registration:checkin"
   | "registration:export"
+  | "event:approve"
 
 export const SITE_ROLE_LABEL: Record<SiteRole, string> = {
   super_admin: "Super admin",
@@ -33,12 +34,14 @@ export const COMMUNITY_ROLE_LABEL: Record<CommunityRole, string> = {
   lead: "Lead",
   manager: "Manager",
   volunteer: "Volunteer",
+  advisor: "Advisor",
 }
 
 export const COMMUNITY_ROLE_DESCRIPTION: Record<CommunityRole, string> = {
   lead: "Runs the community: settings, team, and everything a manager can do.",
   manager: "Creates and publishes posts and events, decides registrations.",
   volunteer: "Sees drafts and registrations, checks attendees in at the door.",
+  advisor: "Reads the community and approves events at or above the review size.",
 }
 
 const SITE_CAPABILITIES: Record<SiteRole, ReadonlySet<SiteCapability>> = {
@@ -84,6 +87,37 @@ const LEAD: CommunityCapability[] = [
   "member:manage",
 ]
 
+const ADVISOR: CommunityCapability[] = [
+  "member:read",
+  "post:read",
+  "registration:read",
+  "event:approve",
+]
+
+export const COHOST_CAPABILITIES: readonly CommunityCapability[] = [
+  "post:read",
+  "post:write",
+  "post:publish",
+  "post:delete",
+  "registration:read",
+  "registration:decide",
+  "registration:checkin",
+  "registration:export",
+]
+
+export const ADVISOR_REVIEW_CAPACITY = 80
+
+export function needsAdvisorApproval(event: {
+  isEvent: boolean
+  capacity: number | null
+}): boolean {
+  return (
+    event.isEvent &&
+    event.capacity !== null &&
+    event.capacity >= ADVISOR_REVIEW_CAPACITY
+  )
+}
+
 const COMMUNITY_CAPABILITIES: Record<
   CommunityRole,
   ReadonlySet<CommunityCapability>
@@ -91,16 +125,56 @@ const COMMUNITY_CAPABILITIES: Record<
   lead: new Set(LEAD),
   manager: new Set(MANAGER),
   volunteer: new Set(VOLUNTEER),
+  advisor: new Set(ADVISOR),
 }
 
 export const COMMUNITY_ROLE_RANK: Record<CommunityRole, number> = {
   lead: 3,
   manager: 2,
   volunteer: 1,
+  advisor: 2,
+}
+
+export type PermissionOverride = {
+  userId: string | null
+  role: CommunityRole | null
+  capability: CommunityCapability
+  effect: "grant" | "revoke"
+}
+
+const COMMUNITY_CAPABILITY_LIST: CommunityCapability[] = [
+  "community:update",
+  "member:read",
+  "member:manage",
+  "post:read",
+  "post:write",
+  "post:publish",
+  "post:delete",
+  "registration:read",
+  "registration:decide",
+  "registration:checkin",
+  "registration:export",
+  "event:approve",
+]
+
+export function isCommunityCapability(
+  value: string
+): value is CommunityCapability {
+  return COMMUNITY_CAPABILITY_LIST.some((capability) => capability === value)
 }
 
 export function isSiteAdmin(role: SiteRole): boolean {
   return role === "admin" || role === "super_admin"
+}
+
+export function adminCoversDepartment(
+  siteRole: SiteRole,
+  adminDepartment: string | null,
+  communityDepartment: string | null
+): boolean {
+  if (siteRole !== "admin") return true
+  if (!adminDepartment) return true
+  return communityDepartment === adminDepartment
 }
 
 export function siteCan(role: SiteRole, capability: SiteCapability): boolean {
@@ -110,11 +184,26 @@ export function siteCan(role: SiteRole, capability: SiteCapability): boolean {
 export function communityCan(
   siteRole: SiteRole,
   communityRole: CommunityRole | null,
-  capability: CommunityCapability
+  capability: CommunityCapability,
+  ctx?: { userId: string; overrides: readonly PermissionOverride[] }
 ): boolean {
-  if (isSiteAdmin(siteRole)) return true
-  if (!communityRole) return false
-  return COMMUNITY_CAPABILITIES[communityRole].has(capability)
+  const base =
+    isSiteAdmin(siteRole) ||
+    (communityRole !== null &&
+      COMMUNITY_CAPABILITIES[communityRole].has(capability))
+  if (!ctx || siteRole === "super_admin") return base
+  let allowed = base
+  const roleOverrides = ctx.overrides.filter(
+    (override) => override.role !== null && override.role === communityRole
+  )
+  const userOverrides = ctx.overrides.filter(
+    (override) => override.userId !== null && override.userId === ctx.userId
+  )
+  for (const override of [...roleOverrides, ...userOverrides]) {
+    if (override.capability !== capability) continue
+    allowed = override.effect === "grant"
+  }
+  return allowed
 }
 
 export function communityCapabilities(
@@ -131,7 +220,7 @@ export function assignableCommunityRoles(
   communityRole: CommunityRole | null
 ): CommunityRole[] {
   if (siteCan(siteRole, "community:assignLead"))
-    return ["lead", "manager", "volunteer"]
+    return ["lead", "manager", "volunteer", "advisor"]
   if (communityRole === "lead") return ["manager", "volunteer"]
   return []
 }
@@ -144,7 +233,7 @@ export function canChangeMember(
   if (!communityCan(actor.siteRole, actor.communityRole, "member:manage"))
     return false
   if (target.isSelf) return false
-  return target.role !== "lead"
+  return target.role === "manager" || target.role === "volunteer"
 }
 
 export function canSetSiteRole(
