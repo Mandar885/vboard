@@ -8,7 +8,6 @@ import {
   createPost,
   deletePost,
   getPostById,
-  setAdvisorApproval,
   setPostPinned,
   setPostStatus,
   updatePost,

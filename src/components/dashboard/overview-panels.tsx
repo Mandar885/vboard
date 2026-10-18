@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { ArrowUpRightIcon, CalendarIcon } from "lucide-react"
 import {
   EmptyState,
   Panel,
@@ -7,14 +8,6 @@ import {
 } from "@/components/dashboard/ui"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button-variants"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { formatEventDate, formatStamp } from "@/lib/format"
 import type { CommunityRole } from "@/lib/rbac"
 
@@ -29,7 +22,6 @@ export type UpcomingEvent = {
   seatsTaken: number
   pendingCount: number
 }
-
 export type PendingRequest = {
   id: string
   registeredAt: Date
@@ -38,7 +30,6 @@ export type PendingRequest = {
   title: string | null
   communitySlug: string
 }
-
 export type MyEvent = {
   id: string
   status: string
@@ -60,52 +51,57 @@ export function TeamEvents({
   empty: string
 }) {
   return (
-    <Panel title={title} description={description} flush>
+    <Panel
+      title={title}
+      description={description}
+      flush
+      action={
+        <Link
+          href="/dashboard/events"
+          className={buttonVariants({ variant: "ghost", size: "sm" })}
+        >
+          All events
+          <ArrowUpRightIcon />
+        </Link>
+      }
+    >
       {events.length === 0 ? (
-        <EmptyState title={empty} />
+        <EmptyState title={empty} className="m-4" icon={<CalendarIcon />} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-6">Event</TableHead>
-              <TableHead>When</TableHead>
-              <TableHead>Seats</TableHead>
-              <TableHead className="pr-6">Pending</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {events.map((event) => (
-              <TableRow key={event.id}>
-                <TableCell className="pl-6">
-                  <Link
-                    href={`/dashboard/c/${event.communitySlug}/posts/${event.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {event.title}
-                  </Link>
-                  <div className="text-muted-foreground text-xs">
-                    {event.communityName}
-                    {event.status === "draft" && " · draft"}
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {event.startsAt ? formatEventDate(event.startsAt) : "TBD"}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {event.seatsTaken}
-                  {event.capacity ? `/${event.capacity}` : ""}
-                </TableCell>
-                <TableCell className="pr-6">
-                  {event.pendingCount > 0 ? (
-                    <Badge variant="outline">{event.pendingCount}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
+        <ul className="divide-y">
+          {events.slice(0, 6).map((event) => (
+            <li key={event.id}>
+              <Link
+                href={`/dashboard/c/${event.communitySlug}/posts/${event.id}`}
+                className="hover:bg-muted/50 flex min-w-0 flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium break-words">{event.title}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {event.communityName} ·{" "}
+                    {event.startsAt
+                      ? formatEventDate(event.startsAt)
+                      : "Date to be confirmed"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {event.status !== "published" && (
+                    <StatusBadge status={event.status} />
                   )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {event.seatsTaken}
+                    {event.capacity ? ` / ${event.capacity}` : ""} seats
+                  </span>
+                  {event.pendingCount > 0 && (
+                    <Badge variant="outline">
+                      {event.pendingCount} pending
+                    </Badge>
+                  )}
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </Panel>
   )
@@ -114,41 +110,60 @@ export function TeamEvents({
 export function PendingDecisions({ requests }: { requests: PendingRequest[] }) {
   return (
     <Panel
-      title="Needs your decision"
-      description="Oldest requests first."
+      title="Needs attention"
+      description={`${requests.length}${requests.length === 20 ? "+" : ""} pending registration${requests.length === 1 ? "" : "s"} · oldest first`}
       flush
     >
       {requests.length === 0 ? (
         <EmptyState
           title="All caught up"
           body="No registration requests are waiting."
+          className="m-4"
         />
       ) : (
-        <Table>
-          <TableBody>
-            {requests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell className="max-w-0 pl-6">
-                  <div className="truncate font-medium">{request.name}</div>
-                  <div className="text-muted-foreground truncate text-xs">
-                    {request.title} · {formatStamp(request.registeredAt)}
-                  </div>
-                </TableCell>
-                <TableCell className="w-0 pr-6 text-right">
-                  <Link
-                    href={`/dashboard/c/${request.communitySlug}/posts/${request.postId}?status=pending`}
-                    className={buttonVariants({
-                      variant: "outline",
-                      size: "sm",
-                    })}
-                  >
-                    Review
-                  </Link>
-                </TableCell>
-              </TableRow>
+        <>
+          <ul className="divide-y">
+            {requests.slice(0, 5).map((request) => (
+              <li
+                key={request.id}
+                className="flex items-start justify-between gap-3 px-4 py-4 md:px-6"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium break-words">{request.name}</p>
+                  <p className="text-muted-foreground text-xs break-words">
+                    {request.title}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {formatStamp(request.registeredAt)}
+                  </p>
+                </div>
+                <Link
+                  href={`/dashboard/c/${request.communitySlug}/posts/${request.postId}?status=pending`}
+                  className={buttonVariants({
+                    variant: "outline",
+                    size: "sm",
+                    className: "min-h-11 shrink-0",
+                  })}
+                >
+                  Review
+                </Link>
+              </li>
             ))}
-          </TableBody>
-        </Table>
+          </ul>
+          {requests.length > 5 && (
+            <div className="text-muted-foreground border-t px-4 py-3 text-xs md:px-6">
+              Showing 5 of {requests.length}
+              {requests.length === 20 ? "+" : ""} requests.{" "}
+              <Link
+                href="/dashboard/events"
+                className="text-foreground underline underline-offset-4"
+              >
+                Open an event
+              </Link>{" "}
+              to review its full queue.
+            </div>
+          )}
+        </>
       )}
     </Panel>
   )
@@ -165,12 +180,16 @@ export function MyEvents({ events }: { events: MyEvent[] }) {
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
           All registrations
+          <ArrowUpRightIcon />
         </Link>
       }
     >
       {events.length === 0 ? (
         <EmptyState
-          title="You are not registered for anything yet"
+          title="Your next event starts here"
+          body="Find something on the campus board and register with your VOSS account."
+          className="m-4"
+          icon={<CalendarIcon />}
           action={
             <Link href="/" className={buttonVariants({ size: "sm" })}>
               Discover events
@@ -178,31 +197,29 @@ export function MyEvents({ events }: { events: MyEvent[] }) {
           }
         />
       ) : (
-        <Table>
-          <TableBody>
-            {events.slice(0, 5).map((event) => (
-              <TableRow key={event.id}>
-                <TableCell className="pl-6">
-                  <Link
-                    href={`/posts/${event.postSlug}`}
-                    className="font-medium hover:underline"
-                  >
-                    {event.title}
-                  </Link>
-                  <div className="text-muted-foreground text-xs">
+        <ul className="divide-y">
+          {events.slice(0, 5).map((event) => (
+            <li key={event.id}>
+              <Link
+                href={`/posts/${event.postSlug}`}
+                className="hover:bg-muted/50 flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium break-words">{event.title}</p>
+                  <p className="text-muted-foreground text-xs">
                     {event.communityName}
                     {event.startsAt
                       ? ` · ${formatEventDate(event.startsAt)}`
                       : ""}
-                  </div>
-                </TableCell>
-                <TableCell className="pr-6 text-right">
+                  </p>
+                </div>
+                <div>
                   <StatusBadge status={event.status} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
     </Panel>
   )
@@ -211,24 +228,20 @@ export function MyEvents({ events }: { events: MyEvent[] }) {
 export function CommunityList({
   memberships,
 }: {
-  memberships: {
-    slug: string
-    name: string
-    role: CommunityRole
-  }[]
+  memberships: { slug: string; name: string; role: CommunityRole }[]
 }) {
   return (
     <Panel
       title="Your communities"
-      description="Open the one you are working in."
+      description="Choose a community to continue your work."
     >
       <ul className="divide-y">
         {memberships.map((membership) => (
           <li
             key={membership.slug}
-            className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+            className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Link
                 href={`/dashboard/c/${membership.slug}`}
                 className="font-medium hover:underline"
@@ -237,11 +250,17 @@ export function CommunityList({
               </Link>
               <RoleBadge role={membership.role} />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/dashboard/c/${membership.slug}`}
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Open workspace
+              </Link>
               {membership.role === "lead" && (
                 <Link
                   href={`/dashboard/c/${membership.slug}/team`}
-                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   Team
                 </Link>
@@ -250,7 +269,7 @@ export function CommunityList({
                 membership.role === "manager") && (
                 <Link
                   href={`/dashboard/c/${membership.slug}/posts/new`}
-                  className={buttonVariants({ size: "sm" })}
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   New post
                 </Link>

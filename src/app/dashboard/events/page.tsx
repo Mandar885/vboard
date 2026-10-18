@@ -1,3 +1,4 @@
+import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { EventFilters } from "@/components/dashboard/event-filters"
 import {
@@ -7,7 +8,6 @@ import {
   StatusBadge,
 } from "@/components/dashboard/ui"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -106,7 +106,8 @@ export default async function EventsPage({
       <Panel
         flush
         title={`${events.length}${events.length === 200 ? "+" : ""} event${events.length === 1 ? "" : "s"}`}
-        action={
+      >
+        <div className="border-b p-4 md:px-6">
           <EventFilters
             q={q}
             when={when}
@@ -120,15 +121,15 @@ export default async function EventsPage({
             }))}
             statuses={statuses}
           />
-        }
-      >
+        </div>
         {events.length === 0 ? (
           <EmptyState
+            className="m-4"
             title="No events match"
             body="Try another time, community, or status."
           />
         ) : (
-          <Table>
+          <RecordTable>
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">Event</TableHead>
@@ -158,7 +159,10 @@ export default async function EventsPage({
                         {event.communityName}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell
+                      data-label="When"
+                      className="text-muted-foreground"
+                    >
                       {event.startsAt
                         ? formatEventDate(
                             event.startsAt,
@@ -166,18 +170,18 @@ export default async function EventsPage({
                           )
                         : "TBD"}
                     </TableCell>
-                    <TableCell className="tabular-nums">
+                    <TableCell data-label="Seats" className="tabular-nums">
                       {event.seatsTaken}
                       {event.capacity ? `/${event.capacity}` : ""}
                     </TableCell>
-                    <TableCell className="pr-6">
+                    <TableCell data-label="Status" className="pr-6">
                       <StatusBadge status={event.status} />
                     </TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
-          </Table>
+          </RecordTable>
         )}
       </Panel>
     </>

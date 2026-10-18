@@ -48,11 +48,6 @@ export type SidebarItem = {
 
 export type SidebarSection = { label?: string; items: SidebarItem[] }
 
-function isActive(pathname: string, url: string) {
-  if (url === "/dashboard") return pathname === "/dashboard"
-  return pathname === url || pathname.startsWith(`${url}/`)
-}
-
 export function AppSidebar({
   sections,
   user,
@@ -63,6 +58,14 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
+  const activeUrl = sections
+    .flatMap((section) => section.items)
+    .filter(
+      (item) =>
+        pathname === item.url ||
+        (item.url !== "/dashboard" && pathname.startsWith(`${item.url}/`))
+    )
+    .sort((a, b) => b.url.length - a.url.length)[0]?.url
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -82,7 +85,10 @@ export function AppSidebar({
               </span>
               <span className="flex items-end gap-1 text-base font-extrabold tracking-[-0.045em] group-data-[collapsible=icon]:hidden">
                 vboard
-                <span className="bg-brand-pure mb-[3px] size-1.5" aria-hidden />
+                <span
+                  className="bg-brand mb-[3px] size-1.5 rounded-full"
+                  aria-hidden
+                />
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -102,7 +108,7 @@ export function AppSidebar({
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={isActive(pathname, item.url)}
+                        isActive={activeUrl === item.url}
                         render={<Link href={item.url} />}
                         onClick={() => {
                           if (isMobile) setOpenMobile(false)

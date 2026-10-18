@@ -41,7 +41,8 @@ export const COMMUNITY_ROLE_DESCRIPTION: Record<CommunityRole, string> = {
   lead: "Runs the community: settings, team, and everything a manager can do.",
   manager: "Creates and publishes posts and events, decides registrations.",
   volunteer: "Sees drafts and registrations, checks attendees in at the door.",
-  advisor: "Reads the community and approves events at or above the review size.",
+  advisor:
+    "Reads the community and approves events at or above the review size.",
 }
 
 const SITE_CAPABILITIES: Record<SiteRole, ReadonlySet<SiteCapability>> = {

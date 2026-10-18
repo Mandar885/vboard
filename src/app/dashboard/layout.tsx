@@ -4,6 +4,7 @@ import {
   AppSidebar,
   type SidebarSection,
 } from "@/components/dashboard/app-sidebar"
+import { WorkspaceRouteProvider } from "@/components/dashboard/route-context"
 import { SiteHeader } from "@/components/dashboard/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { listAllCommunities } from "@/db/queries/communities"
@@ -82,21 +83,23 @@ export default async function DashboardLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar
-        variant="inset"
-        sections={sections}
-        user={{
-          name: user.name,
-          email: user.email,
-          role: SITE_ROLE_LABEL[user.siteRole],
-        }}
-      />
-      <SidebarInset>
-        <SiteHeader names={names} />
-        <div className="@container/main flex flex-1 flex-col gap-6 p-4 lg:p-6">
-          {children}
-        </div>
-      </SidebarInset>
+      <WorkspaceRouteProvider>
+        <AppSidebar
+          variant="inset"
+          sections={sections}
+          user={{
+            name: user.name,
+            email: user.email,
+            role: SITE_ROLE_LABEL[user.siteRole],
+          }}
+        />
+        <SidebarInset id="main-content" tabIndex={-1}>
+          <SiteHeader names={names} />
+          <div className="@container/main flex min-w-0 flex-1 flex-col gap-6 p-4 text-sm md:p-6">
+            {children}
+          </div>
+        </SidebarInset>
+      </WorkspaceRouteProvider>
     </SidebarProvider>
   )
 }

@@ -3,12 +3,13 @@
 import { useMemo, useState } from "react"
 import { SearchIcon } from "lucide-react"
 import { ActionForm } from "@/components/action-form"
-import { StatusBadge } from "@/components/dashboard/ui"
+import { RecordTable } from "@/components/dashboard/record-table"
+import { Button } from "@/components/ui/button"
+import { EmptyState, StatusBadge } from "@/components/dashboard/ui"
 import { SubmitButton } from "@/components/submit-button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -35,6 +36,7 @@ const FILTERS = [
   "attended",
   "rejected",
   "cancelled",
+  "no_show",
 ]
 
 export function RegistrationsTable({
@@ -88,7 +90,7 @@ export function RegistrationsTable({
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-col gap-3 border-b px-6 pb-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 border-b px-4 py-4 md:px-6">
         <Tabs
           value={filter}
           onValueChange={(v) => {
@@ -96,10 +98,14 @@ export function RegistrationsTable({
             setSelected(new Set())
           }}
         >
-          <TabsList className="flex-wrap">
+          <TabsList className="h-auto w-full max-w-full flex-wrap justify-start gap-1 group-data-horizontal/tabs:h-auto">
             {FILTERS.map((f) => (
-              <TabsTrigger key={f} value={f} className="capitalize">
-                {f}
+              <TabsTrigger
+                key={f}
+                value={f}
+                className="h-auto min-h-11 flex-none px-2.5 text-xs capitalize md:min-h-8"
+              >
+                {f === "no_show" ? "No-show" : f}
                 <span className="text-muted-foreground tabular-nums">
                   {counts[f] ?? 0}
                 </span>
@@ -107,12 +113,15 @@ export function RegistrationsTable({
             ))}
           </TabsList>
         </Tabs>
-        <div className="relative w-full lg:w-64">
+        <div className="relative w-full sm:max-w-sm">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSelected(new Set())
+            }}
             placeholder="Name, email, roll no."
             aria-label="Search registrations"
             className="pl-8"
@@ -124,14 +133,29 @@ export function RegistrationsTable({
         <ActionForm
           action={decideRegistrationsAction}
           onDone={() => setSelected(new Set())}
-          className="bg-muted/40 flex flex-wrap items-center gap-2 border-b px-6 py-3"
+          className="bg-muted/40 flex flex-wrap items-center gap-2 border-b px-4 py-3 md:px-6 [&>[role=alert]]:w-full"
         >
           <input type="hidden" name="slug" value={slug} />
           <input type="hidden" name="postId" value={postId} />
           {[...selected].map((id) => (
             <input key={id} type="hidden" name="registrationId" value={id} />
           ))}
-          <span className="text-muted-foreground mr-2 text-sm tabular-nums">
+          <label className="flex min-h-11 items-center gap-2 pr-2 text-xs">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={(on) =>
+                setSelected(
+                  on ? new Set(visible.map((row) => row.id)) : new Set()
+                )
+              }
+              aria-label="Select all visible registrations"
+            />
+            Select visible
+          </label>
+          <span
+            aria-live="polite"
+            className="text-muted-foreground mr-2 text-sm tabular-nums"
+          >
             {selected.size} selected
           </span>
           {canDecide && (
@@ -141,6 +165,7 @@ export function RegistrationsTable({
                 value="approve"
                 size="sm"
                 disabled={none}
+                pendingLabel="Applying…"
               >
                 Approve
               </SubmitButton>
@@ -150,6 +175,7 @@ export function RegistrationsTable({
                 size="sm"
                 variant="destructive"
                 disabled={none}
+                pendingLabel="Applying…"
               >
                 Reject
               </SubmitButton>
@@ -163,6 +189,7 @@ export function RegistrationsTable({
                 size="sm"
                 variant="secondary"
                 disabled={none}
+                pendingLabel="Applying…"
               >
                 Check in
               </SubmitButton>
@@ -172,6 +199,7 @@ export function RegistrationsTable({
                 size="sm"
                 variant="outline"
                 disabled={none}
+                pendingLabel="Applying…"
               >
                 No-show
               </SubmitButton>
@@ -181,6 +209,7 @@ export function RegistrationsTable({
                 size="sm"
                 variant="ghost"
                 disabled={none}
+                pendingLabel="Applying…"
               >
                 Undo check-in
               </SubmitButton>
@@ -189,25 +218,50 @@ export function RegistrationsTable({
         </ActionForm>
       )}
 
+      <p
+        className="text-muted-foreground border-b px-4 py-2 text-xs md:px-6"
+        aria-live="polite"
+      >
+        {visible.length} of {rows.length} registrations
+        {selected.size > 0
+          ? " · Decisions apply to every selected attendee."
+          : ""}
+      </p>
       {visible.length === 0 ? (
-        <p className="text-muted-foreground px-6 py-10 text-center text-sm">
-          No registrations match.
-        </p>
+        <EmptyState
+          className="m-4"
+          title={
+            rows.length === 0
+              ? "No registrations yet"
+              : "No registrations match"
+          }
+          body={
+            rows.length === 0
+              ? "Requests will appear here when people register."
+              : "Try a different status, name, email or roll number."
+          }
+          action={
+            rows.length > 0 ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilter("all")
+                  setQuery("")
+                  setSelected(new Set())
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
-        <Table>
+        <RecordTable>
           <TableHeader>
             <TableRow>
               {selectable && (
                 <TableHead className="w-10 pl-6">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={(on) =>
-                      setSelected(
-                        on ? new Set(visible.map((r) => r.id)) : new Set()
-                      )
-                    }
-                    aria-label="Select all"
-                  />
+                  <span className="sr-only">Selection</span>
                 </TableHead>
               )}
               <TableHead className={selectable ? "" : "pl-6"}>Name</TableHead>
@@ -225,31 +279,41 @@ export function RegistrationsTable({
               >
                 {selectable && (
                   <TableCell className="pl-6">
-                    <Checkbox
-                      checked={selected.has(r.id)}
-                      onCheckedChange={(on) => toggle(r.id, on)}
-                      aria-label={`Select ${r.name}`}
-                    />
+                    <label className="flex min-h-11 items-center gap-2 md:min-h-0">
+                      <Checkbox
+                        checked={selected.has(r.id)}
+                        onCheckedChange={(on) => toggle(r.id, on)}
+                        aria-label={`Select ${r.name}`}
+                      />
+                      <span className="text-muted-foreground text-xs md:sr-only">
+                        Select attendee
+                      </span>
+                    </label>
                   </TableCell>
                 )}
                 <TableCell className={selectable ? "" : "pl-6"}>
                   <div className="font-medium">{r.name}</div>
                   <div className="text-muted-foreground text-xs">{r.email}</div>
                 </TableCell>
-                <TableCell className="tabular-nums">
+                <TableCell data-label="Roll no." className="tabular-nums">
                   {r.rollNumber ?? "—"}
                 </TableCell>
-                <TableCell>{r.department ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell data-label="Department">
+                  {r.department ?? "—"}
+                </TableCell>
+                <TableCell
+                  data-label="Registered"
+                  className="text-muted-foreground"
+                >
                   {r.registeredAt}
                 </TableCell>
-                <TableCell className="pr-6">
+                <TableCell data-label="Status" className="pr-6">
                   <StatusBadge status={r.status} />
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+        </RecordTable>
       )}
     </div>
   )

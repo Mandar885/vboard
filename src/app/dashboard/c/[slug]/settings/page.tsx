@@ -1,5 +1,5 @@
 import { ActionForm } from "@/components/action-form"
-import { Panel } from "@/components/dashboard/ui"
+import { FormFooter, Panel } from "@/components/dashboard/ui"
 import { SubmitButton } from "@/components/submit-button"
 import {
   Field,
@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { requireCommunityAccess } from "@/lib/session"
-import { updateCommunityAction } from "./actions"
+import { updateCommunityAction } from "@/app/dashboard/c/[slug]/settings/actions"
 
 export default async function CommunitySettingsPage({
   params,
@@ -23,8 +23,8 @@ export default async function CommunitySettingsPage({
   return (
     <Panel
       title="Community details"
-      description="Shown on the public community page."
-      className="max-w-2xl"
+      description="Your public identity. Changes appear on the community page and its posts."
+      className="max-w-3xl"
     >
       <ActionForm
         key={[community.name, community.description, community.logoUrl].join(
@@ -62,21 +62,21 @@ export default async function CommunitySettingsPage({
               placeholder="https://"
             />
             <FieldDescription>
-              Image uploads arrive with R2 storage.
+              Use a publicly accessible image URL.
             </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="address">Address</FieldLabel>
             <Input
+              className="font-mono text-xs"
               id="address"
               value={`/communities/${community.slug}`}
               readOnly
-              disabled
             />
           </Field>
-          <div>
-            <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
-          </div>
+          <FormFooter description="Your community address stays the same.">
+            <SubmitButton pendingLabel="Saving…">Save changes</SubmitButton>
+          </FormFooter>
         </FieldGroup>
       </ActionForm>
     </Panel>

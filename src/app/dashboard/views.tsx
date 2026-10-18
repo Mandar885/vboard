@@ -14,20 +14,19 @@ import type { CommunityRole } from "@/lib/rbac"
 
 type Membership = { slug: string; name: string; role: CommunityRole }
 
-export function StudentHome({
-  name,
-  events,
-}: {
-  name: string
-  events: MyEvent[]
-}) {
+export function StudentHome({ events }: { name: string; events: MyEvent[] }) {
   const going = events.filter((event) => event.status === "approved")
   const waiting = events.filter((event) => event.status === "pending")
   return (
     <>
       <PageHeader
-        title={`Hello, ${name}`}
-        description="Events you have a seat for. Register for the rest from the campus board."
+        title="Your workspace"
+        description="Keep track of your upcoming events and registration decisions."
+        actions={
+          <Link href="/" className={buttonVariants()}>
+            Discover events
+          </Link>
+        }
       />
       <SectionCards>
         <StatCard label="Going" value={going.length} hint="Approved seats" />
@@ -37,9 +36,9 @@ export function StudentHome({
           hint="Awaiting a decision"
         />
         <StatCard
-          label="All"
+          label="Upcoming"
           value={events.length}
-          hint="Registrations on file"
+          hint="Active registrations"
         />
       </SectionCards>
       <MyEvents events={events} />
@@ -48,7 +47,6 @@ export function StudentHome({
 }
 
 export function VolunteerHome({
-  name,
   memberships,
   events,
   mine,
@@ -61,14 +59,14 @@ export function VolunteerHome({
   return (
     <>
       <PageHeader
-        title={`Staffing, ${name}`}
+        title="Event operations"
         description="Check people in from an event, and see who has registered."
       />
       <SectionCards>
         <StatCard label="Communities" value={memberships.length} />
         <StatCard
           label="Coming up"
-          value={events.length}
+          value={`${events.length}${events.length === 10 ? "+" : ""}`}
           hint="Events you staff"
         />
         <StatCard
@@ -96,7 +94,6 @@ export function VolunteerHome({
 }
 
 export function AdvisorHome({
-  name,
   memberships,
   events,
 }: {
@@ -107,12 +104,15 @@ export function AdvisorHome({
   return (
     <>
       <PageHeader
-        title={`Advising, ${name}`}
+        title="Community overview"
         description="The communities you advise, and the events they have coming up."
       />
       <SectionCards>
         <StatCard label="Communities" value={memberships.length} />
-        <StatCard label="Coming up" value={events.length} />
+        <StatCard
+          label="Coming up"
+          value={`${events.length}${events.length === 10 ? "+" : ""}`}
+        />
       </SectionCards>
       <div className="grid gap-4 xl:grid-cols-5">
         <div className="xl:col-span-3">
@@ -132,7 +132,6 @@ export function AdvisorHome({
 }
 
 export function OrganizerHome({
-  name,
   lead,
   memberships,
   events,
@@ -149,7 +148,7 @@ export function OrganizerHome({
   return (
     <>
       <PageHeader
-        title={lead ? `Running, ${name}` : `Publishing, ${name}`}
+        title="Community workspace"
         description={
           lead
             ? "The communities you lead, the events coming up, and the requests waiting on you."
@@ -160,10 +159,13 @@ export function OrganizerHome({
         <StatCard label="Communities" value={memberships.length} />
         <StatCard
           label="Needs a decision"
-          value={requests.length}
+          value={`${requests.length}${requests.length === 20 ? "+" : ""}`}
           hint="Pending registrations"
         />
-        <StatCard label="Coming up" value={events.length} />
+        <StatCard
+          label="Coming up"
+          value={`${events.length}${events.length === 10 ? "+" : ""}`}
+        />
         <StatCard label="Your seats" value={mine.length} />
       </SectionCards>
       <div className="grid gap-4 xl:grid-cols-5">
@@ -186,7 +188,6 @@ export function OrganizerHome({
 }
 
 export function AdminHome({
-  name,
   superAdmin,
   communities,
   users,
@@ -207,7 +208,7 @@ export function AdminHome({
   return (
     <>
       <PageHeader
-        title={`Campus, ${name}`}
+        title="Campus overview"
         description={
           superAdmin
             ? "Every community, and the requests waiting on a decision. You appoint site admins from People."
@@ -218,7 +219,7 @@ export function AdminHome({
             href="/dashboard/admin/communities"
             className={buttonVariants()}
           >
-            Communities
+            Manage communities
           </Link>
         }
       />

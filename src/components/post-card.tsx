@@ -1,156 +1,146 @@
 import Link from "next/link"
-import { ArrowUpRight, Lock } from "lucide-react"
+import {
+  ArrowRight,
+  CalendarDays,
+  Lock,
+  MapPin,
+  Pin,
+  Users,
+} from "lucide-react"
+import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { bodyPreview, formatEventDate } from "@/lib/format"
-import type { FeedPost } from "@/db/queries/posts"
+import { bodyPreview, formatEventDate, formatShortDate } from "@/lib/format"
 
-type Props = {
-  post: FeedPost
+export type PostCardPost = {
+  id: string
+  slug: string
+  title: string
+  body: string
+  communitySlug: string
+  communityName: string
+  isEvent: boolean
+  isPinned: boolean
+  startsAt: Date | null
+  endsAt: Date | null
+  location: string | null
+  locationVisibility: "public" | "after_approval" | null
+  capacity: number | null
+  seatsTaken: number
+  requiresApproval: boolean
+}
+
+export function PostCard({
+  post,
+  variant = "default",
+}: {
+  post: PostCardPost
   variant?: "default" | "compact"
-}
-
-export function PostCard({ post, variant = "default" }: Props) {
+}) {
   const compact = variant === "compact"
+  const date = post.startsAt ? formatShortDate(post.startsAt).split(" ") : null
 
   return (
-    <article
-      className={cn(
-        "surface surface-hover group relative flex flex-col",
-        compact ? "p-5" : "p-6"
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/communities/${post.communitySlug}`}
-            className="inline-flex items-center gap-2 text-[0.78rem] font-medium transition-colors hover:text-[var(--brand)]"
-            style={{ color: "var(--text)" }}
-          >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: "var(--brand)" }}
+    <article className="min-w-0">
+      <Card className="hover:ring-foreground/25 h-full gap-0 transition-shadow">
+        <CardContent className={cn("flex gap-4", !compact && "md:gap-5")}>
+          {post.isEvent && date && (
+            <div
+              className="bg-muted hidden h-16 w-14 shrink-0 flex-col items-center justify-center rounded-lg sm:flex"
               aria-hidden
-            />
-            {post.communityName}
-          </Link>
-        </div>
-        <span
-          className="font-mono text-[0.7rem] tracking-[0.12em] uppercase"
-          style={{
-            color: post.isEvent ? "var(--text-dim)" : "var(--text-muted)",
-          }}
-        >
-          {post.isEvent ? "Event" : "Note"}
-        </span>
-      </div>
-
-      <Link href={`/posts/${post.slug}`} className="mt-5 block">
-        <h3
-          className={cn(
-            "display-tight font-semibold transition-colors group-hover:text-[var(--brand)]",
-            compact ? "text-[1.05rem]" : "text-[1.4rem] md:text-[1.6rem]"
+            >
+              <span className="text-brand text-xs font-medium">{date[1]}</span>
+              <span className="text-2xl leading-tight font-semibold tracking-tight">
+                {date[0]}
+              </span>
+            </div>
           )}
-          style={{ color: "var(--text)" }}
-        >
-          {post.title}
-        </h3>
-      </Link>
-
-      <p
-        className={cn(
-          "mt-3 leading-relaxed",
-          compact ? "text-[0.85rem]" : "text-[0.95rem]"
-        )}
-        style={{ color: "var(--text-dim)" }}
-      >
-        {bodyPreview(post.body, compact ? 110 : 180)}
-      </p>
-
-      {post.isEvent && (
-        <div
-          className="mt-5 grid gap-x-6 gap-y-2 font-mono text-[0.78rem]"
-          style={{
-            gridTemplateColumns:
-              "max-content max-content max-content max-content",
-          }}
-        >
-          {post.startsAt && (
-            <MetaCell
-              label="When"
-              value={formatEventDate(post.startsAt, post.endsAt ?? undefined)}
-            />
-          )}
-          {post.location && (
-            <MetaCell
-              label="Where"
-              value={
-                post.locationVisibility === "after_approval" ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Lock className="size-3" aria-hidden /> after approval
-                  </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link
+                href={`/communities/${post.communitySlug}`}
+                className="text-muted-foreground hover:text-foreground max-w-full min-w-0 text-xs font-medium break-words hover:underline"
+              >
+                {post.communityName}
+              </Link>
+              <Badge variant="secondary">
+                {post.isEvent ? "Event" : "Announcement"}
+              </Badge>
+              {post.isPinned && (
+                <Badge variant="outline">
+                  <Pin aria-hidden />
+                  Pinned
+                </Badge>
+              )}
+            </div>
+            <h3
+              className={cn(
+                "mt-2 font-semibold tracking-tight text-pretty break-words",
+                compact ? "text-base" : "text-lg md:text-xl"
+              )}
+            >
+              <Link href={`/posts/${post.slug}`} className="hover:text-brand">
+                {post.title}
+              </Link>
+            </h3>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              {bodyPreview(post.body, compact ? 120 : 200)}
+            </p>
+            {post.isEvent && (
+              <ul className="text-muted-foreground mt-4 grid gap-2 text-xs leading-relaxed sm:text-sm">
+                {post.startsAt && (
+                  <li className="flex items-start gap-2">
+                    <CalendarDays
+                      className="mt-0.5 size-3.5 shrink-0"
+                      aria-hidden
+                    />
+                    <span>
+                      {formatEventDate(post.startsAt, post.endsAt ?? undefined)}
+                    </span>
+                  </li>
+                )}
+                {post.locationVisibility === "after_approval" ? (
+                  <li className="flex items-center gap-2">
+                    <Lock className="size-3.5 shrink-0" aria-hidden />
+                    Location shared after approval
+                  </li>
                 ) : (
-                  post.location
-                )
-              }
-            />
-          )}
-          {typeof post.capacity === "number" && (
-            <MetaCell
-              label="Spots"
-              value={`${post.seatsTaken}/${post.capacity}`}
-            />
-          )}
-          {post.requiresApproval && (
-            <MetaCell label="Status" value="approval required" />
-          )}
-        </div>
-      )}
-
-      <div
-        className="mt-6 flex items-center justify-between text-[0.78rem]"
-        style={{ color: "var(--text-muted)" }}
-      >
-        <span className="font-mono">
-          {post.authorName ?? post.communityName}
-        </span>
-        <Link
-          href={`/posts/${post.slug}`}
-          className="inline-flex items-center gap-1.5 font-mono tracking-[0.08em] uppercase transition-colors hover:text-[var(--brand)]"
-          style={{ color: "var(--text)" }}
-        >
-          {post.isEvent
-            ? post.requiresApproval
-              ? "Request"
-              : "Register"
-            : "Read"}
-          <ArrowUpRight
-            className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            aria-hidden
-          />
-        </Link>
-      </div>
-
-      {post.isPinned && (
-        <span
-          className="absolute top-6 right-6 size-1.5 rounded-full"
-          style={{ background: "var(--brand)" }}
-          aria-label="Pinned"
-        />
-      )}
+                  post.location && (
+                    <li className="flex items-start gap-2">
+                      <MapPin
+                        className="mt-0.5 size-3.5 shrink-0"
+                        aria-hidden
+                      />
+                      <span className="break-words">{post.location}</span>
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-2.5">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {post.isEvent && typeof post.capacity === "number" && (
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="size-3.5" aria-hidden />
+                {Math.max(0, post.capacity - post.seatsTaken)} spots left
+              </span>
+            )}
+            {post.isEvent && post.requiresApproval && (
+              <span>Approval required</span>
+            )}
+            {!post.isEvent && <span>From {post.communityName}</span>}
+          </div>
+          <Link
+            href={`/posts/${post.slug}`}
+            className="hover:text-brand inline-flex min-h-8 items-center gap-1.5 text-xs font-medium"
+          >
+            {post.isEvent ? "View event" : "Read announcement"}
+            <ArrowRight className="size-3.5" aria-hidden />
+          </Link>
+        </CardFooter>
+      </Card>
     </article>
-  )
-}
-
-function MetaCell({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-0.5 whitespace-nowrap">
-      <span
-        className="text-[0.65rem] tracking-[0.14em] uppercase"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {label}
-      </span>
-      <span style={{ color: "var(--text)" }}>{value}</span>
-    </div>
   )
 }

@@ -1,7 +1,14 @@
+import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { ActionForm } from "@/components/action-form"
 import { ConfirmSubmit } from "@/components/confirm-submit"
-import { PageHeader, Panel, StatusBadge } from "@/components/dashboard/ui"
+import {
+  EmptyState,
+  FormFooter,
+  PageHeader,
+  Panel,
+  StatusBadge,
+} from "@/components/dashboard/ui"
 import { SubmitButton } from "@/components/submit-button"
 import {
   Field,
@@ -11,7 +18,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -22,7 +28,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { listAllCommunities } from "@/db/queries/communities"
 import { formatStamp } from "@/lib/format"
 import { requireSiteCapability } from "@/lib/session"
-import { createCommunityAction, setCommunityActiveAction } from "../actions"
+import {
+  createCommunityAction,
+  setCommunityActiveAction,
+} from "@/app/dashboard/admin/actions"
 
 export default async function AdminCommunitiesPage() {
   await requireSiteCapability("community:create")
@@ -40,64 +49,78 @@ export default async function AdminCommunitiesPage() {
           description={`${communities.length} on vboard`}
           flush
         >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Community</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Posts</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="pr-6 text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {communities.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="pl-6">
-                    <Link
-                      href={`/dashboard/c/${c.slug}`}
-                      className="font-medium hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                    <div className="text-muted-foreground text-xs">
-                      /{c.slug} · {formatStamp(c.createdAt)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="tabular-nums">{c.teamCount}</TableCell>
-                  <TableCell className="tabular-nums">{c.postCount}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={c.isActive ? "active" : "archived"} />
-                  </TableCell>
-                  <TableCell className="pr-6 text-right">
-                    <ActionForm
-                      action={setCommunityActiveAction}
-                      className="inline"
-                    >
-                      <input type="hidden" name="communityId" value={c.id} />
-                      <input
-                        type="hidden"
-                        name="active"
-                        value={c.isActive ? "false" : "true"}
-                      />
-                      {c.isActive ? (
-                        <ConfirmSubmit
-                          label="Archive"
-                          title={`Archive ${c.name}?`}
-                          description="Its posts leave the public site and its team loses dashboard access. You can restore it later."
-                          confirmLabel="Archive"
-                        />
-                      ) : (
-                        <SubmitButton size="sm" variant="outline">
-                          Restore
-                        </SubmitButton>
-                      )}
-                    </ActionForm>
-                  </TableCell>
+          {communities.length === 0 ? (
+            <EmptyState
+              className="m-4"
+              title="No communities yet"
+              body="Create a community and appoint a lead to get started."
+            />
+          ) : (
+            <RecordTable>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="pl-6">Community</TableHead>
+                  <TableHead>Team</TableHead>
+                  <TableHead>Posts</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="pr-6 text-right">Action</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {communities.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell className="pl-6">
+                      <Link
+                        href={`/dashboard/c/${c.slug}`}
+                        className="font-medium hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                      <div className="text-muted-foreground text-xs">
+                        /{c.slug} · {formatStamp(c.createdAt)}
+                      </div>
+                    </TableCell>
+                    <TableCell data-label="Team" className="tabular-nums">
+                      {c.teamCount}
+                    </TableCell>
+                    <TableCell data-label="Posts" className="tabular-nums">
+                      {c.postCount}
+                    </TableCell>
+                    <TableCell data-label="Status">
+                      <StatusBadge
+                        status={c.isActive ? "active" : "archived"}
+                      />
+                    </TableCell>
+                    <TableCell data-label="Action" className="pr-6 text-right">
+                      <ActionForm
+                        action={setCommunityActiveAction}
+                        className="inline"
+                      >
+                        <input type="hidden" name="communityId" value={c.id} />
+                        <input
+                          type="hidden"
+                          name="active"
+                          value={c.isActive ? "false" : "true"}
+                        />
+                        {c.isActive ? (
+                          <ConfirmSubmit
+                            label="Archive"
+                            title={`Archive ${c.name}?`}
+                            description="Its posts leave the public site and its team loses dashboard access. You can restore it later."
+                            confirmLabel="Archive"
+                          />
+                        ) : (
+                          <SubmitButton size="sm" variant="outline">
+                            Restore
+                          </SubmitButton>
+                        )}
+                      </ActionForm>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </RecordTable>
+          )}
         </Panel>
 
         <Panel title="New community">
@@ -141,11 +164,11 @@ export default async function AdminCommunitiesPage() {
                   The lead must have signed in once.
                 </FieldDescription>
               </Field>
-              <div>
+              <FormFooter>
                 <SubmitButton pendingLabel="Creating…">
                   Create community
                 </SubmitButton>
-              </div>
+              </FormFooter>
             </FieldGroup>
           </ActionForm>
         </Panel>

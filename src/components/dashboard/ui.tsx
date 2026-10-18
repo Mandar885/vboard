@@ -10,33 +10,12 @@ import {
 import { cn } from "@/lib/utils"
 import { COMMUNITY_ROLE_LABEL, type CommunityRole } from "@/lib/rbac"
 
-export function PageHeader({
-  title,
-  description,
-  actions,
-}: {
-  title: string
-  description?: string
-  actions?: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-muted-foreground max-w-2xl text-sm">
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
-  )
-}
+export { PageHeader } from "@/components/page-header"
+export { EmptyState } from "@/components/empty-state"
 
 export function SectionCards({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
       {children}
     </div>
   )
@@ -56,8 +35,8 @@ export function StatCard({
   hint?: string
 }) {
   return (
-    <div className="bg-card text-card-foreground ring-foreground/10 rounded-lg p-4 ring-1">
-      <div className="flex items-start justify-between gap-2">
+    <div className="bg-card text-card-foreground rounded-xl border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="text-muted-foreground text-xs font-medium">{label}</p>
         {badge}
       </div>
@@ -88,37 +67,49 @@ export function Panel({
   flush?: boolean
 }) {
   return (
-    <Card className={cn(flush && "gap-0 pb-0", className)}>
+    <Card
+      className={cn(
+        "min-w-0 shadow-none",
+        flush && "gap-0 overflow-hidden pb-0",
+        className
+      )}
+    >
       {(title || action) && (
-        <CardHeader className={cn(flush && "border-b pb-4")}>
+        <CardHeader
+          className={cn(
+            "gap-2 has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]",
+            flush && "border-b pb-4"
+          )}
+        >
           {title && <CardTitle>{title}</CardTitle>}
           {description && <CardDescription>{description}</CardDescription>}
-          {action && <CardAction>{action}</CardAction>}
+          {action && (
+            <CardAction className="col-span-full row-auto w-full justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:w-auto sm:justify-self-end [&>form]:w-full">
+              {action}
+            </CardAction>
+          )}
         </CardHeader>
       )}
-      <CardContent className={cn(flush && "px-0")}>{children}</CardContent>
+      <CardContent className={cn(flush && "px-0 [&>[data-slot=empty]]:m-4")}>
+        {children}
+      </CardContent>
     </Card>
   )
 }
 
-export function EmptyState({
-  title,
-  body,
-  action,
+export function FormFooter({
+  children,
+  description,
 }: {
-  title: string
-  body?: string
-  action?: React.ReactNode
+  children: React.ReactNode
+  description?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-1.5 px-6 py-8 text-center">
-      <p className="text-sm font-medium">{title}</p>
-      {body && (
-        <p className="text-muted-foreground max-w-sm text-xs text-balance">
-          {body}
-        </p>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+      {description && (
+        <p className="text-muted-foreground text-xs">{description}</p>
       )}
-      {action && <div className="mt-2">{action}</div>}
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
 }

@@ -6,24 +6,22 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --bg: #fafaf7;
+  --bg: #fafafa;
   --bg-elevated: #ffffff;
   --bg-card: #ffffff;
-  --bg-card-hover: #f5f4ef;
-  --border: #e6e4dd;
-  --border-hover: #c9c5bb;
-  --text: #0a0a0a;
+  --bg-card-hover: #f5f5f5;
+  --border: #e5e5e5;
+  --border-hover: #d4d4d4;
+  --text: #171717;
   --text-dim: #525252;
-  --text-muted: #a8a29e;
+  --text-muted: #737373;
   --accent-fg: #0a0a0a;
   --accent-fg-soft: #262626;
   --brand: #c4421d;
   --brand-light: #e0541e;
   --brand-pure: #fb7a3c;
 
-  --radius: 6px;
-  --radius-sm: 4px;
-  --radius-lg: 8px;
+  --radius: 0.5rem;
 
   --max-width: 1320px;
   --transition: cubic-bezier(0.4, 0, 0.2, 1);
@@ -75,7 +73,7 @@
   --border-hover: #404040;
   --text: #fafafa;
   --text-dim: #a3a3a3;
-  --text-muted: #525252;
+  --text-muted: #a3a3a3;
   --accent-fg: #fafafa;
   --accent-fg-soft: #ffffff;
   --brand: #fb7a3c;
@@ -140,45 +138,32 @@
   --color-text-dim: var(--text-dim);
   --color-text-muted: var(--text-muted);
 
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: 12px;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 2px);
 }
 
 .container {
+  width: 100%;
   max-width: var(--max-width);
   margin-inline: auto;
-  padding-inline: 32px;
-}
-@media (max-width: 768px) {
-  .container {
-    padding-inline: 20px;
-  }
+  padding-inline: 16px;
 }
 
-[data-reveal] {
-  opacity: 0;
-  transform: translateY(12px);
-  transition:
-    opacity 0.5s var(--transition),
-    transform 0.5s var(--transition);
-}
-[data-reveal].revealed {
-  opacity: 1;
-  transform: translateY(0);
+@media (min-width: 768px) {
+  .container {
+    padding-inline: 24px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
-  }
-  [data-reveal] {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -200,7 +185,6 @@
   }
 
   html {
-    scroll-behavior: smooth;
     font-size: 16px;
   }
 
@@ -218,11 +202,6 @@
       color 0.3s var(--transition);
   }
 
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
-
   ::selection {
     background: var(--brand);
     color: #fff;
@@ -236,94 +215,5 @@
     outline: 2px solid var(--brand);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
-  }
-}
-
-@layer components {
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: var(--brand);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-  }
-  .eyebrow::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--brand);
-    border-radius: 50%;
-  }
-
-  .display-tight {
-    font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 1.05;
-  }
-
-  .display-md {
-    font-size: clamp(1.5rem, 3.2vw, 2rem);
-    font-weight: 600;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-  }
-
-  .display-xl {
-    font-size: clamp(1.9rem, 5.5vw, 4rem);
-    font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 1.05;
-  }
-
-  .text-dim {
-    color: var(--text-dim);
-  }
-  .text-muted {
-    color: var(--text-muted);
-  }
-  .text-brand {
-    color: var(--brand);
-  }
-
-  .hairline-top {
-    border-top: 1px solid var(--border);
-  }
-  .hairline-bottom {
-    border-bottom: 1px solid var(--border);
-  }
-
-  .mono-label {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-
-  .brand-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--brand);
-    border-radius: 50%;
-  }
-
-  .surface {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    transition:
-      border-color 0.2s var(--transition),
-      background-color 0.2s var(--transition);
-  }
-  .surface-hover:hover {
-    background: var(--bg-card-hover);
-    border-color: var(--border-hover);
   }
 }

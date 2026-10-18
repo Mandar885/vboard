@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Fragment } from "react"
+import { useWorkspaceRoute } from "@/components/dashboard/route-context"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,52 +17,71 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
+  dashboard: "Workspace",
   registrations: "My registrations",
   events: "All events",
   profile: "Profile",
-  admin: "Admin",
   communities: "Communities",
   people: "People",
   audit: "Audit log",
-  posts: "Posts",
   new: "New post",
-  edit: "Edit",
+  edit: "Edit post",
   team: "Team",
   settings: "Settings",
 }
 
 export function SiteHeader({ names }: { names: Record<string, string> }) {
   const pathname = usePathname()
+  const route = useWorkspaceRoute()
   const parts = pathname.split("/").filter(Boolean)
-  const crumbs: { href: string; label: string }[] = []
-  parts.forEach((part, i) => {
-    if (part === "c") return
+  const crumbs = parts.flatMap((part, i) => {
+    if (["c", "posts", "admin"].includes(part)) return []
     const label =
-      names[part] ?? LABELS[part] ?? (parts[i - 1] === "posts" ? "Post" : null)
-    if (!label) return
-    crumbs.push({ href: `/${parts.slice(0, i + 1).join("/")}`, label })
+      names[part] ??
+      LABELS[part] ??
+      (parts[i - 1] === "posts"
+        ? route?.id === part
+          ? route.title
+          : "Event details"
+        : null)
+    return label ? [{ href: `/${parts.slice(0, i + 1).join("/")}`, label }] : []
   })
-
   return (
-    <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
-      <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-        <SidebarTrigger className="-ml-1" />
+    <header className="bg-background/95 flex h-(--header-height) shrink-0 items-center border-b">
+      <div className="flex w-full min-w-0 items-center gap-2 px-4 md:px-6">
+        <SidebarTrigger className="-ml-1 min-h-11 min-w-11" />
         <Separator
           orientation="vertical"
-          className="mx-2 h-4 data-vertical:self-auto"
+          className="mr-1 h-4 data-vertical:self-auto"
         />
         <Breadcrumb className="min-w-0 flex-1">
-          <BreadcrumbList>
-            {crumbs.map((c, i) => (
-              <Fragment key={c.href}>
-                {i > 0 && <BreadcrumbSeparator />}
-                <BreadcrumbItem>
+          <BreadcrumbList className="flex-nowrap gap-1.5">
+            {crumbs.map((crumb, i) => (
+              <Fragment key={crumb.href}>
+                {i > 0 && (
+                  <BreadcrumbSeparator
+                    className={
+                      i < crumbs.length - 1
+                        ? "hidden md:block"
+                        : "hidden sm:block"
+                    }
+                  />
+                )}
+                <BreadcrumbItem
+                  className={
+                    i < crumbs.length - 1 ? "hidden min-w-0 md:flex" : "min-w-0"
+                  }
+                >
                   {i === crumbs.length - 1 ? (
-                    <BreadcrumbPage>{c.label}</BreadcrumbPage>
+                    <BreadcrumbPage className="truncate">
+                      {crumb.label}
+                    </BreadcrumbPage>
                   ) : (
-                    <BreadcrumbLink render={<Link href={c.href} />}>
-                      {c.label}
+                    <BreadcrumbLink
+                      className="max-w-52 truncate"
+                      render={<Link href={crumb.href} />}
+                    >
+                      {crumb.label}
                     </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>
@@ -69,7 +89,7 @@ export function SiteHeader({ names }: { names: Record<string, string> }) {
             ))}
           </BreadcrumbList>
         </Breadcrumb>
-        <ThemeToggle variant="dashboard" className="ml-auto shrink-0" />
+        <ThemeToggle variant="dashboard" className="shrink-0" />
       </div>
     </header>
   )

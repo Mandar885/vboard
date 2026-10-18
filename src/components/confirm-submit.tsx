@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { useFormStatus } from "react-dom"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,15 +32,24 @@ export function ConfirmSubmit({
   size?: ButtonVariants["size"]
 }) {
   const [open, setOpen] = useState(false)
+  const { pending } = useFormStatus()
   const anchor = useRef<HTMLSpanElement>(null)
 
   return (
     <span ref={anchor}>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogTrigger
-          render={<Button type="button" variant={variant} size={size} />}
+          render={
+            <Button
+              type="button"
+              variant={variant}
+              size={size}
+              disabled={pending}
+              aria-busy={pending}
+            />
+          }
         >
-          {label}
+          {pending ? "Please wait…" : label}
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -52,6 +62,7 @@ export function ConfirmSubmit({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant={variant === "destructive" ? "destructive" : "default"}
+              disabled={pending}
               onClick={() => {
                 setOpen(false)
                 anchor.current?.closest("form")?.requestSubmit()

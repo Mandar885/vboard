@@ -1,3 +1,4 @@
+import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { PinIcon } from "lucide-react"
 import {
@@ -10,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button-variants"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -72,6 +72,7 @@ export default async function CommunityPostsPage({
       <Panel title="Posts and events" flush>
         {posts.length === 0 ? (
           <EmptyState
+            className="m-4"
             title="Nothing posted yet"
             body="Announcements and events you create appear here."
             action={
@@ -86,7 +87,7 @@ export default async function CommunityPostsPage({
             }
           />
         ) : (
-          <Table>
+          <RecordTable>
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">Title</TableHead>
@@ -113,20 +114,23 @@ export default async function CommunityPostsPage({
                       )}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Type">
                     <Badge variant="outline">
                       {p.isEvent ? "Event" : "Note"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Status">
                     <StatusBadge status={p.status} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell
+                    data-label="When"
+                    className="text-muted-foreground"
+                  >
                     {p.isEvent && p.startsAt
                       ? formatEventDate(p.startsAt)
                       : formatStamp(p.createdAt)}
                   </TableCell>
-                  <TableCell className="pr-6">
+                  <TableCell data-label="Registrations" className="pr-6">
                     {p.isEvent ? (
                       <span className="inline-flex items-center gap-2 tabular-nums">
                         {p.seatsTaken}
@@ -144,7 +148,7 @@ export default async function CommunityPostsPage({
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </RecordTable>
         )}
       </Panel>
     </>

@@ -1,55 +1,55 @@
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 
 export function Footer() {
   return (
-    <footer className="hairline-top mt-32">
-      <div className="container">
-        <div className="flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-end gap-1.5">
-            <span
-              className="text-base leading-none font-extrabold tracking-[-0.045em]"
-              style={{ color: "var(--text)" }}
-            >
-              vboard
-            </span>
-            <span
-              className="mb-[2px] block size-2"
-              style={{ background: "var(--brand-pure)" }}
-              aria-hidden
-            />
-            <span className="ml-3 text-sm" style={{ color: "var(--text-dim)" }}>
-              Events and community for VIT.
-            </span>
-          </div>
-
-          <nav className="mono-label flex items-center gap-6">
-            <Link href="/" className="hover:text-[var(--text)]">
-              Discover
-            </Link>
-            <Link href="/calendar" className="hover:text-[var(--text)]">
-              Calendar
-            </Link>
-            <Link href="/communities" className="hover:text-[var(--text)]">
-              Communities
-            </Link>
-            <a
-              href="https://github.com/voss-labs"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-[var(--text)]"
-            >
-              GitHub →
-            </a>
-          </nav>
+    <footer className="bg-card mt-auto border-t">
+      <div className="container flex flex-col gap-5 py-7 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <Link
+            href="/"
+            className="inline-flex min-h-8 items-center gap-2 text-base font-semibold tracking-tight"
+          >
+            vboard
+            <span className="bg-brand size-1.5 rounded-sm" aria-hidden />
+          </Link>
+          <p className="text-muted-foreground text-xs">
+            Events and community for VIT. Built by voss-labs.
+          </p>
         </div>
-
-        <div
-          className="hairline-top flex items-center justify-between py-6 text-xs"
-          style={{ color: "var(--text-muted)" }}
+        <nav
+          aria-label="Footer navigation"
+          className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-1 text-sm"
         >
-          <span>vosslabs · {new Date().getFullYear()}</span>
-          <span className="font-mono">MIT</span>
-        </div>
+          <Link
+            href="/"
+            className="hover:text-foreground flex min-h-11 items-center"
+          >
+            Discover
+          </Link>
+          <Link
+            href="/calendar"
+            className="hover:text-foreground flex min-h-11 items-center"
+          >
+            Calendar
+          </Link>
+          <Link
+            href="/communities"
+            className="hover:text-foreground flex min-h-11 items-center"
+          >
+            Communities
+          </Link>
+          <a
+            href="https://github.com/voss-labs"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground flex min-h-11 items-center gap-1"
+          >
+            GitHub
+            <ArrowUpRight className="size-3.5" aria-hidden />
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        </nav>
       </div>
     </footer>
   )
