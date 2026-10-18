@@ -1,12 +1,6 @@
 import { pgEnum } from "drizzle-orm/pg-core"
 
-export const siteRoleEnum = pgEnum("site_role", ["admin", "student"])
-
-export const communityRoleEnum = pgEnum("community_role", [
-  "lead",
-  "manager",
-  "volunteer",
-])
+export const communityRoleEnum = pgEnum("community_role", ["lead", "organizer"])
 
 export const postVisibilityEnum = pgEnum("post_visibility", [
   "public",

@@ -157,12 +157,12 @@ export const demoDrafts: {
 
 export const TEAM_FILL: { slug: string; role: CommunityRole; count: number }[] =
   [
-    { slug: "coding-club", role: "volunteer", count: 2 },
-    { slug: "gdg-vit", role: "manager", count: 1 },
-    { slug: "gdg-vit", role: "volunteer", count: 2 },
-    { slug: "drama-society", role: "manager", count: 1 },
-    { slug: "drama-society", role: "volunteer", count: 1 },
-    { slug: "chess-club", role: "manager", count: 1 },
-    { slug: "ieee-vit", role: "manager", count: 1 },
-    { slug: "ieee-vit", role: "volunteer", count: 2 },
+    { slug: "coding-club", role: "organizer", count: 2 },
+    { slug: "gdg-vit", role: "organizer", count: 1 },
+    { slug: "gdg-vit", role: "organizer", count: 2 },
+    { slug: "drama-society", role: "organizer", count: 1 },
+    { slug: "drama-society", role: "organizer", count: 1 },
+    { slug: "chess-club", role: "organizer", count: 1 },
+    { slug: "ieee-vit", role: "organizer", count: 1 },
+    { slug: "ieee-vit", role: "organizer", count: 2 },
   ]

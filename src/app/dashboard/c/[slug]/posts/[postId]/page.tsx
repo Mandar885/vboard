@@ -1,3 +1,6 @@
+import { z } from "zod"
+import { withDb } from "@/db"
+import { WorkspaceRouteTitle } from "@/components/dashboard/route-context"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
@@ -10,6 +13,7 @@ import { ActionForm } from "@/components/action-form"
 import { ConfirmSubmit } from "@/components/confirm-submit"
 import { RegistrationsTable } from "@/components/dashboard/registrations-table"
 import {
+  EmptyState,
   Panel,
   SectionCards,
   StatCard,
@@ -27,7 +31,7 @@ import {
   deletePostAction,
   setPostStatusAction,
   togglePinAction,
-} from "../actions"
+} from "@/app/dashboard/c/[slug]/posts/actions"
 
 export default async function ManagePostPage({
   params,
@@ -39,12 +43,19 @@ export default async function ManagePostPage({
   const { slug, postId } = await params
   const { status: initialFilter } = await searchParams
   const access = await requireCommunityAccess(slug)
-  const post = /^[0-9a-f-]{36}$/.test(postId) ? await getPostById(postId) : null
+  const id = z.uuid().safeParse(postId)
+  const post = id.success
+    ? await withDb({ userId: access.user.id }, async (ctx) =>
+        getPostById(ctx, id.data)
+      )
+    : null
   if (!post || post.communityId !== access.community.id) notFound()
 
   const registrations =
     post.isEvent && access.can("registration:read")
-      ? await listRegistrations(post.id)
+      ? await withDb({ userId: access.user.id }, async (ctx) =>
+          listRegistrations(ctx, post.id)
+        )
       : []
   const count = (s: string) =>
     registrations.filter((r) => r.status === s).length
@@ -74,7 +85,8 @@ export default async function ManagePostPage({
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
+      <WorkspaceRouteTitle id={post.id} title={post.title} />
       <div className="flex flex-col gap-4 @5xl/main:flex-row @5xl/main:items-start @5xl/main:justify-between">
         <div className="space-y-2">
           <Link
@@ -88,7 +100,9 @@ export default async function ManagePostPage({
             <ArrowLeftIcon data-icon="inline-start" />
             All posts
           </Link>
-          <h2 className="text-xl font-semibold tracking-tight">{post.title}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight break-words">
+            {post.title}
+          </h2>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={post.status} />
             <Badge variant="outline">
@@ -149,7 +163,7 @@ export default async function ManagePostPage({
                   <ConfirmSubmit
                     label="Cancel event"
                     title="Cancel this event?"
-                    description="It stays visible, marked cancelled, and registration closes."
+                    description="Registration closes and the event leaves public discovery. Existing registrations remain on record."
                     confirmLabel="Cancel event"
                   />
                 </ActionForm>
@@ -162,7 +176,7 @@ export default async function ManagePostPage({
               <ConfirmSubmit
                 label="Delete"
                 title="Delete this post?"
-                description="The post and all of its registrations are removed. This cannot be undone."
+                description="This post leaves discovery. Existing registrations remain in history."
                 confirmLabel="Delete post"
               />
             </ActionForm>
@@ -240,7 +254,14 @@ export default async function ManagePostPage({
               />
             </Panel>
           </>
-        ) : null
+        ) : (
+          <Panel title="Registrations">
+            <EmptyState
+              title="Registration access is limited"
+              body="Your current role can read this post but cannot view its registrations."
+            />
+          </Panel>
+        )
       ) : (
         <Panel title="Post">
           <p className="text-sm leading-relaxed whitespace-pre-line">

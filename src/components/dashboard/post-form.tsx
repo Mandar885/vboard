@@ -79,58 +79,70 @@ export function PostForm({
   return (
     <ActionForm
       action={action}
-      className="grid gap-6 @5xl/main:grid-cols-[1.6fr_1fr]"
+      className="grid items-start gap-6 @5xl/main:grid-cols-[1.6fr_1fr] [&>[role=alert]]:col-span-full"
     >
       <input type="hidden" name="slug" value={slug} />
       {postId && <input type="hidden" name="postId" value={postId} />}
       <input type="hidden" name="isEvent" value={isEvent ? "on" : ""} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{mode === "create" ? "New post" : "Edit post"}</CardTitle>
-          <CardDescription>
-            An event people can register for, or a plain announcement.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FieldGroup>
-            <Tabs
-              value={isEvent ? "event" : "note"}
-              onValueChange={(v) => setIsEvent(v === "event")}
-            >
-              <TabsList>
-                <TabsTrigger value="event">Event</TabsTrigger>
-                <TabsTrigger value="note">Announcement</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <Field>
-              <FieldLabel htmlFor="title">Title</FieldLabel>
-              <Input
-                id="title"
-                name="title"
-                defaultValue={defaults.title}
-                placeholder={
-                  isEvent ? "Intro to Rust workshop" : "Recruitment is open"
-                }
-                required
-                minLength={3}
-                maxLength={140}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="body">
-                {isEvent ? "About the event" : "Post"}
-              </FieldLabel>
-              <Textarea
-                id="body"
-                name="body"
-                defaultValue={defaults.body}
-                className="min-h-40"
-                required
-              />
-            </Field>
-            {isEvent && (
-              <>
+      <div className="flex min-w-0 flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Content</CardTitle>
+            <CardDescription>
+              An event people can register for, or a plain announcement.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <Tabs
+                value={isEvent ? "event" : "note"}
+                onValueChange={(v) => setIsEvent(v === "event")}
+              >
+                <TabsList>
+                  <TabsTrigger value="event">Event</TabsTrigger>
+                  <TabsTrigger value="note">Announcement</TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Field>
+                <FieldLabel htmlFor="title">Title</FieldLabel>
+                <Input
+                  id="title"
+                  name="title"
+                  defaultValue={defaults.title}
+                  placeholder={
+                    isEvent ? "Intro to Rust workshop" : "Recruitment is open"
+                  }
+                  required
+                  minLength={3}
+                  maxLength={140}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="body">
+                  {isEvent ? "About the event" : "Post"}
+                </FieldLabel>
+                <Textarea
+                  id="body"
+                  name="body"
+                  defaultValue={defaults.body}
+                  className="min-h-40"
+                  required
+                />
+              </Field>
+            </FieldGroup>
+          </CardContent>
+        </Card>
+        {isEvent && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Event details</CardTitle>
+              <CardDescription>
+                Dates and times are India Standard Time.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="startsAt">Starts</FieldLabel>
@@ -180,11 +192,11 @@ export function PostForm({
                     ]}
                   />
                 </Field>
-              </>
-            )}
-          </FieldGroup>
-        </CardContent>
-      </Card>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <div className="flex flex-col gap-6">
         {isEvent && (
@@ -236,7 +248,7 @@ export function PostForm({
                       Approve each registration
                     </FieldLabel>
                     <FieldDescription>
-                      Requests wait until a manager approves them.
+                      Requests wait until an Organizer approves them.
                     </FieldDescription>
                   </FieldContent>
                   <Switch
@@ -289,7 +301,13 @@ export function PostForm({
             </FieldGroup>
           </CardContent>
         </Card>
-
+      </div>
+      <div className="bg-background/95 sticky bottom-0 z-10 col-span-full flex flex-wrap items-center justify-between gap-3 border-t py-4 backdrop-blur-sm">
+        <p className="text-muted-foreground text-xs">
+          {mode === "create"
+            ? "Save a draft to finish later, or publish when ready."
+            : "Changes apply when you save."}
+        </p>
         <div className="flex flex-wrap gap-2">
           {mode === "create" ? (
             <>

@@ -1,3 +1,5 @@
+import { z } from "zod"
+import { withDb } from "@/db"
 import { NextResponse } from "next/server"
 import { getPostById } from "@/db/queries/posts"
 import { listRegistrations } from "@/db/queries/registrations"
@@ -15,11 +17,18 @@ export async function GET(
   const access = await getCommunityAccess(user, slug)
   if (!access?.can("registration:export"))
     return new NextResponse("Not found", { status: 404 })
-  const post = /^[0-9a-f-]{36}$/.test(postId) ? await getPostById(postId) : null
+  const id = z.uuid().safeParse(postId)
+  const post = id.success
+    ? await withDb({ userId: access.user.id }, (ctx) =>
+        getPostById(ctx, id.data)
+      )
+    : null
   if (!post || post.communityId !== access.community.id)
     return new NextResponse("Not found", { status: 404 })
 
-  const rows = await listRegistrations(post.id)
+  const rows = await withDb({ userId: access.user.id }, (ctx) =>
+    listRegistrations(ctx, post.id)
+  )
   const csv = toCsv(
     [
       "Name",

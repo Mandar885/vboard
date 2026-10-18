@@ -1,7 +1,8 @@
+import { withDb } from "@/db"
+import { RecordTable } from "@/components/dashboard/record-table"
 import { EmptyState, PageHeader, Panel } from "@/components/dashboard/ui"
 import { Badge } from "@/components/ui/badge"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -21,8 +22,10 @@ function describe(details: Record<string, unknown> | null) {
 }
 
 export default async function AuditPage() {
-  await requireSiteCapability("audit:read")
-  const entries = await listAuditLog()
+  const user = await requireSiteCapability("audit:read")
+  const entries = await withDb({ userId: user.id }, async (ctx) =>
+    listAuditLog(ctx)
+  )
 
   return (
     <>
@@ -36,9 +39,13 @@ export default async function AuditPage() {
         flush
       >
         {entries.length === 0 ? (
-          <EmptyState title="Nothing recorded yet" />
+          <EmptyState
+            className="m-4"
+            title="Nothing recorded yet"
+            body="Privileged changes will appear here as they happen."
+          />
         ) : (
-          <Table>
+          <RecordTable>
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">When</TableHead>
@@ -50,24 +57,30 @@ export default async function AuditPage() {
             <TableBody>
               {entries.map((e) => (
                 <TableRow key={e.id}>
-                  <TableCell className="text-muted-foreground pl-6">
+                  <TableCell
+                    data-label="When"
+                    className="text-muted-foreground pl-6"
+                  >
                     {formatStamp(e.createdAt)}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell data-label="Who" className="font-medium">
                     {e.actorName ?? "System"}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono">
-                      {e.action}
+                  <TableCell data-label="Action">
+                    <Badge variant="outline" className="font-normal">
+                      {e.action.replaceAll("_", " ").replaceAll(".", " · ")}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-muted-foreground max-w-md truncate pr-6">
+                  <TableCell
+                    data-label="Details"
+                    className="text-muted-foreground max-w-md pr-6 break-words"
+                  >
                     {describe(e.details)}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </RecordTable>
         )}
       </Panel>
     </>

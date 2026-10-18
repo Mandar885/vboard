@@ -39,6 +39,12 @@ export default function RootLayout({
       <body className="bg-background min-h-dvh font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>
+            <a
+              href="#main-content"
+              className="bg-primary text-primary-foreground sr-only fixed top-2 left-2 z-[100] rounded-lg px-4 py-3 text-sm focus:not-sr-only"
+            >
+              Skip to content
+            </a>
             {children}
             <Toaster />
           </TooltipProvider>

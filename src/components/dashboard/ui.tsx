@@ -4,40 +4,18 @@ import {
   CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { COMMUNITY_ROLE_LABEL, type CommunityRole } from "@/lib/rbac"
 
-export function PageHeader({
-  title,
-  description,
-  actions,
-}: {
-  title: string
-  description?: string
-  actions?: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-muted-foreground max-w-2xl text-sm">
-            {description}
-          </p>
-        )}
-      </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
-  )
-}
+export { PageHeader } from "@/components/page-header"
+export { EmptyState } from "@/components/empty-state"
 
 export function SectionCards({ children }: { children: React.ReactNode }) {
   return (
-    <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:auto-cols-fr lg:grid-flow-col lg:grid-cols-none">
       {children}
     </div>
   )
@@ -57,21 +35,19 @@ export function StatCard({
   hint?: string
 }) {
   return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {value}
-        </CardTitle>
-        {badge && <CardAction>{badge}</CardAction>}
-      </CardHeader>
-      {(footer || hint) && (
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          {footer && <div className="line-clamp-1 font-medium">{footer}</div>}
-          {hint && <div className="text-muted-foreground">{hint}</div>}
-        </CardFooter>
+    <div className="bg-card text-card-foreground rounded-xl border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        {badge}
+      </div>
+      <div className="mt-1.5 text-2xl leading-none font-semibold tracking-tight tabular-nums">
+        {value}
+      </div>
+      {footer && (
+        <p className="text-muted-foreground mt-1.5 text-xs">{footer}</p>
       )}
-    </Card>
+      {hint && <p className="text-muted-foreground mt-1.5 text-xs">{hint}</p>}
+    </div>
   )
 }
 
@@ -91,42 +67,61 @@ export function Panel({
   flush?: boolean
 }) {
   return (
-    <Card className={cn(flush && "gap-0 pb-0", className)}>
+    <Card
+      className={cn(
+        "min-w-0 shadow-none",
+        flush && "gap-0 overflow-hidden pb-0",
+        className
+      )}
+    >
       {(title || action) && (
-        <CardHeader className={cn(flush && "border-b pb-4")}>
+        <CardHeader
+          className={cn(
+            "gap-2 has-data-[slot=card-action]:grid-cols-1 sm:has-data-[slot=card-action]:grid-cols-[minmax(0,1fr)_auto]",
+            flush && "border-b pb-4"
+          )}
+        >
           {title && <CardTitle>{title}</CardTitle>}
           {description && <CardDescription>{description}</CardDescription>}
-          {action && <CardAction>{action}</CardAction>}
+          {action && (
+            <CardAction className="col-span-full row-auto w-full justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:w-auto sm:justify-self-end [&>form]:w-full">
+              {action}
+            </CardAction>
+          )}
         </CardHeader>
       )}
-      <CardContent className={cn(flush && "px-0")}>{children}</CardContent>
+      <CardContent className={cn(flush && "px-0 [&>[data-slot=empty]]:m-4")}>
+        {children}
+      </CardContent>
     </Card>
   )
 }
 
-export function EmptyState({
-  title,
-  body,
-  action,
+export function FormFooter({
+  children,
+  description,
 }: {
-  title: string
-  body?: string
-  action?: React.ReactNode
+  children: React.ReactNode
+  description?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <div className="text-sm font-medium">{title}</div>
-      {body && <p className="text-muted-foreground max-w-sm text-sm">{body}</p>}
-      {action && <div className="mt-2">{action}</div>}
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+      {description && (
+        <p className="text-muted-foreground text-xs">{description}</p>
+      )}
+      <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   )
 }
 
-export function RoleBadge({ role }: { role: CommunityRole | "admin" }) {
-  const label = role === "admin" ? "Site admin" : COMMUNITY_ROLE_LABEL[role]
+export function RoleBadge({ role }: { role: CommunityRole | "super_admin" }) {
+  const label =
+    role === "super_admin" ? "Super admin" : COMMUNITY_ROLE_LABEL[role]
   return (
     <Badge
-      variant={role === "lead" || role === "admin" ? "default" : "secondary"}
+      variant={
+        role === "lead" || role === "super_admin" ? "default" : "secondary"
+      }
     >
       {label}
     </Badge>

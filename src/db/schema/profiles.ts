@@ -1,14 +1,13 @@
+import { domainPolicies } from "@/db/schema/rls"
 import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 import { user } from "./auth"
-import { siteRoleEnum } from "./enums"
 
 export const profile = pgTable(
   "profile",
   {
     userId: text("user_id")
       .primaryKey()
-      .references(() => user.id, { onDelete: "cascade" }),
-    siteRole: siteRoleEnum("site_role").notNull().default("student"),
+      .references(() => user.id, { onDelete: "restrict" }),
     rollNumber: text("roll_number"),
     department: text("department"),
     bio: text("bio"),
@@ -19,5 +18,8 @@ export const profile = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("profile_roll_number_idx").on(t.rollNumber)]
-)
+  (t) => [
+    ...domainPolicies("profile"),
+    index("profile_roll_number_idx").on(t.rollNumber),
+  ]
+).enableRLS()

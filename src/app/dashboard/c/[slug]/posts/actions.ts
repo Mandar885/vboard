@@ -1,9 +1,8 @@
 "use server"
-
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
-import { createAuditLog } from "@/db/queries/audit"
+import { withDb, type DbContext } from "@/db"
 import {
   createPost,
   deletePost,
@@ -12,14 +11,16 @@ import {
   setPostStatus,
   updatePost,
 } from "@/db/queries/posts"
-import {
-  listRegistrations,
-  setRegistrationStatus,
-} from "@/db/queries/registrations"
+import { decideRegistrations } from "@/db/queries/registrations"
 import { firstIssue, postFormSchema } from "@/db/validations"
 import { done, fail, type ActionResult } from "@/lib/action-result"
+import { attemptAction } from "@/lib/action-error"
 import { randomSuffix, uniqueSlug } from "@/lib/slug"
-import { actionCommunityAccess, type CommunityAccess } from "@/lib/session"
+import {
+  actionCommunityAccess,
+  actionPostAccess,
+  type CommunityAccess,
+} from "@/lib/session"
 
 function readPostForm(formData: FormData) {
   const get = (key: string) => String(formData.get(key) ?? "")
@@ -40,22 +41,22 @@ function readPostForm(formData: FormData) {
     intent: get("intent") || "save",
   })
 }
-
 function revalidateCommunity(slug: string, postSlug?: string) {
   revalidatePath(`/dashboard/c/${slug}`, "layout")
   revalidatePath(`/communities/${slug}`)
   revalidatePath("/")
   if (postSlug) revalidatePath(`/posts/${postSlug}`)
 }
-
-async function postInCommunity(access: CommunityAccess, postId: unknown) {
+async function postInCommunity(
+  ctx: DbContext,
+  access: CommunityAccess,
+  postId: unknown
+) {
   const id = z.uuid().safeParse(postId)
   if (!id.success) return null
-  const post = await getPostById(id.data)
-  if (!post || post.communityId !== access.community.id) return null
-  return post
+  const post = await getPostById(ctx, id.data)
+  return post?.communityId === access.community.id ? post : null
 }
-
 export async function createPostAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -65,52 +66,54 @@ export async function createPostAction(
   const parsed = readPostForm(formData)
   if (!parsed.success) return fail(firstIssue(parsed.error))
   const { intent, ...data } = parsed.data
-  const publish = intent === "publish" && access.can("post:publish")
-
-  const created = await createPost({
-    ...data,
-    slug: uniqueSlug(data.title, randomSuffix()),
-    communityId: access.community.id,
-    authorId: access.user.id,
-    status: publish ? "published" : "draft",
-  })
-  await createAuditLog({
-    actorId: access.user.id,
-    action: publish ? "post.published" : "post.drafted",
-    targetType: "post",
-    targetId: created.id,
-    communityId: access.community.id,
-    details: { title: data.title, isEvent: data.isEvent },
-  })
+  if (intent === "publish" && !access.can("post:publish"))
+    return fail("You cannot publish here.")
+  let createdId = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const created = await createPost(ctx, {
+        ...data,
+        slug: uniqueSlug(data.title, randomSuffix()),
+        communityId: access.community.id,
+        status: intent === "publish" ? "published" : "draft",
+      })
+      createdId = created.id
+      return done()
+    })
+  )
+  if (!result.ok) return result
   revalidateCommunity(access.community.slug)
-  redirect(`/dashboard/c/${access.community.slug}/posts/${created.id}`)
+  redirect(`/dashboard/c/${access.community.slug}/posts/${createdId}`)
 }
-
 export async function updatePostAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(formData.get("slug"), "post:write")
+  const access = await actionPostAccess(
+    formData.get("slug"),
+    formData.get("postId"),
+    "post:write"
+  )
   if (!access) return fail("You cannot edit posts in this community.")
-  const post = await postInCommunity(access, formData.get("postId"))
-  if (!post) return fail("Post not found.")
   const parsed = readPostForm(formData)
   if (!parsed.success) return fail(firstIssue(parsed.error))
   const { intent: _intent, ...data } = parsed.data
-
-  await updatePost(post.id, data)
-  await createAuditLog({
-    actorId: access.user.id,
-    action: "post.updated",
-    targetType: "post",
-    targetId: post.id,
-    communityId: access.community.id,
-    details: { title: data.title },
-  })
-  revalidateCommunity(access.community.slug, post.slug)
-  redirect(`/dashboard/c/${access.community.slug}/posts/${post.id}`)
+  let postSlug = "",
+    postId = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const post = await postInCommunity(ctx, access, formData.get("postId"))
+      if (!post) return fail("Post not found.")
+      await updatePost(ctx, access.community.id, post.id, data)
+      postSlug = post.slug
+      postId = post.id
+      return done()
+    })
+  )
+  if (!result.ok) return result
+  revalidateCommunity(access.community.slug, postSlug)
+  redirect(`/dashboard/c/${access.community.slug}/posts/${postId}`)
 }
-
 export async function setPostStatusAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -119,131 +122,117 @@ export async function setPostStatusAction(
     .enum(["published", "draft", "cancelled", "completed"])
     .safeParse(formData.get("status"))
   if (!status.success) return fail("Unknown status.")
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:publish"
   )
   if (!access) return fail("You cannot change this post.")
-  const post = await postInCommunity(access, formData.get("postId"))
-  if (!post) return fail("Post not found.")
-
-  await setPostStatus(post.id, status.data)
-  await createAuditLog({
-    actorId: access.user.id,
-    action: `post.${status.data}`,
-    targetType: "post",
-    targetId: post.id,
-    communityId: access.community.id,
-    details: { title: post.title },
-  })
-  revalidateCommunity(access.community.slug, post.slug)
-  return done(
-    `Post ${status.data === "draft" ? "moved to drafts" : status.data}.`
+  let postSlug = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const post = await postInCommunity(ctx, access, formData.get("postId"))
+      if (!post) return fail("Post not found.")
+      await setPostStatus(ctx, access.community.id, post.id, status.data)
+      postSlug = post.slug
+      return done(
+        `Post ${status.data === "draft" ? "moved to drafts" : status.data}.`
+      )
+    })
   )
+  if (result.ok) revalidateCommunity(access.community.slug, postSlug)
+  return result
 }
-
 export async function togglePinAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:publish"
   )
   if (!access) return fail("You cannot pin posts here.")
-  const post = await postInCommunity(access, formData.get("postId"))
-  if (!post) return fail("Post not found.")
-  await setPostPinned(post.id, !post.isPinned)
-  revalidateCommunity(access.community.slug, post.slug)
-  return done(post.isPinned ? "Unpinned." : "Pinned to the top of the feed.")
+  let postSlug = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const post = await postInCommunity(ctx, access, formData.get("postId"))
+      if (!post) return fail("Post not found.")
+      await setPostPinned(ctx, access.community.id, post.id, !post.isPinned)
+      postSlug = post.slug
+      return done(
+        post.isPinned ? "Unpinned." : "Pinned to the top of the feed."
+      )
+    })
+  )
+  if (result.ok) revalidateCommunity(access.community.slug, postSlug)
+  return result
 }
-
 export async function deletePostAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const access = await actionCommunityAccess(
+  const access = await actionPostAccess(
     formData.get("slug"),
+    formData.get("postId"),
     "post:delete"
   )
-  if (!access) return fail("You cannot delete posts here.")
-  const post = await postInCommunity(access, formData.get("postId"))
-  if (!post) return fail("Post not found.")
-
-  await deletePost(post.id)
-  await createAuditLog({
-    actorId: access.user.id,
-    action: "post.deleted",
-    targetType: "post",
-    targetId: post.id,
-    communityId: access.community.id,
-    details: { title: post.title },
-  })
-  revalidateCommunity(access.community.slug, post.slug)
+  if (!access) return fail("You cannot remove posts here.")
+  let postSlug = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const post = await postInCommunity(ctx, access, formData.get("postId"))
+      if (!post) return fail("Post not found.")
+      await deletePost(ctx, access.community.id, post.id)
+      postSlug = post.slug
+      return done()
+    })
+  )
+  if (!result.ok) return result
+  revalidateCommunity(access.community.slug, postSlug)
   redirect(`/dashboard/c/${access.community.slug}`)
 }
-
 const DECISIONS = {
-  approve: { status: "approved", capability: "registration:decide" },
-  reject: { status: "rejected", capability: "registration:decide" },
-  checkin: { status: "attended", capability: "registration:checkin" },
-  noshow: { status: "no_show", capability: "registration:checkin" },
-  reset: { status: "approved", capability: "registration:checkin" },
+  approve: "registration:decide",
+  reject: "registration:decide",
+  checkin: "registration:checkin",
+  noshow: "registration:checkin",
+  reset: "registration:checkin",
 } as const
-
 export async function decideRegistrationsAction(
   _prev: ActionResult | null,
   formData: FormData
 ): Promise<ActionResult> {
-  const decision = z
-    .enum(["approve", "reject", "checkin", "noshow", "reset"])
-    .safeParse(formData.get("decision"))
-  if (!decision.success) return fail("Unknown action.")
-  const { status, capability } = DECISIONS[decision.data]
-  const access = await actionCommunityAccess(formData.get("slug"), capability)
+  const parsed = z
+    .object({
+      decision: z.enum(["approve", "reject", "checkin", "noshow", "reset"]),
+      ids: z.array(z.uuid()).min(1).max(500),
+    })
+    .strict()
+    .safeParse({
+      decision: formData.get("decision"),
+      ids: formData.getAll("registrationId"),
+    })
+  if (!parsed.success) return fail("Select valid registrations and an action.")
+  const access = await actionCommunityAccess(
+    formData.get("slug"),
+    DECISIONS[parsed.data.decision]
+  )
   if (!access) return fail("You do not have permission for that.")
-  const post = await postInCommunity(access, formData.get("postId"))
-  if (!post) return fail("Event not found.")
-
-  const ids = z
-    .array(z.uuid())
-    .safeParse(formData.getAll("registrationId").map(String))
-  if (!ids.success || ids.data.length === 0)
-    return fail("Select at least one registration.")
-
-  const rows = await listRegistrations(post.id)
-  const byId = new Map(rows.map((r) => [r.id, r]))
-  const allowedFrom: Record<string, string[]> = {
-    approve: ["pending", "rejected"],
-    reject: ["pending", "approved"],
-    checkin: ["approved", "no_show"],
-    noshow: ["approved"],
-    reset: ["attended", "no_show"],
-  }
-  const targets = ids.data.filter((id) =>
-    allowedFrom[decision.data].includes(byId.get(id)?.status ?? "")
+  let postSlug = ""
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      const post = await postInCommunity(ctx, access, formData.get("postId"))
+      if (!post?.isEvent) return fail("Event not found.")
+      await decideRegistrations(ctx, {
+        postId: post.id,
+        ids: parsed.data.ids,
+        decision: parsed.data.decision,
+      })
+      postSlug = post.slug
+      return done("Registrations updated.")
+    })
   )
-  if (targets.length === 0) return fail("Nothing to change for that selection.")
-
-  if (decision.data === "approve" && post.capacity !== null) {
-    const taken = rows.filter((r) =>
-      ["approved", "attended"].includes(r.status)
-    ).length
-    if (taken + targets.length > post.capacity)
-      return fail(`Only ${Math.max(0, post.capacity - taken)} seats are left.`)
-  }
-
-  await setRegistrationStatus(targets, status, access.user.id)
-  await createAuditLog({
-    actorId: access.user.id,
-    action: `registration.${decision.data}`,
-    targetType: "post",
-    targetId: post.id,
-    communityId: access.community.id,
-    details: { count: targets.length, title: post.title },
-  })
-  revalidateCommunity(access.community.slug, post.slug)
-  return done(
-    `${targets.length} registration${targets.length === 1 ? "" : "s"} updated.`
-  )
+  if (result.ok) revalidateCommunity(access.community.slug, postSlug)
+  return result
 }

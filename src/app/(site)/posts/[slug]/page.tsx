@@ -1,10 +1,14 @@
+import { withDb } from "@/db"
+import { getTrustedActor } from "@/lib/session"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Lock } from "lucide-react"
+import { ArrowLeft, CalendarDays, Lock, MapPin, Users } from "lucide-react"
+import { EmptyState } from "@/components/empty-state"
 import { RegistrationPanel } from "@/components/registration-panel"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button-variants"
+import { Card, CardContent } from "@/components/ui/card"
 import { getPostDetailBySlug, type FeedPost } from "@/db/queries/posts"
 import { getRegistration } from "@/db/queries/registrations"
 import { formatEventRange, formatShortDate } from "@/lib/format"
@@ -21,69 +25,66 @@ type Props = { params: Promise<{ slug: string }> }
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getPostDetailBySlug((await params).slug)
+  const post = await withDb(await getTrustedActor(), async (ctx) =>
+    getPostDetailBySlug(ctx, (await params).slug)
+  )
   return { title: post ? `${post.title} · vboard` : "vboard" }
 }
 
 export default async function PostPage({ params }: Props) {
-  const post = await getPostDetailBySlug((await params).slug)
+  const post = await withDb(await getTrustedActor(), async (ctx) =>
+    getPostDetailBySlug(ctx, (await params).slug)
+  )
   if (!post) notFound()
-
   const user = await getSessionUser()
   const role = user ? roleIn(user, post.communityId) : null
   const canManage = !!user && communityCan(user.siteRole, role, "post:read")
   if (post.status !== "published" && !canManage) notFound()
-
-  if (post.visibility === "vit_only" && !user) {
+  if (post.visibility === "vit_only" && !user)
     return <SignInWall slug={post.slug} title={post.title} />
-  }
-
-  const registration = user ? await getRegistration(post.id, user.id) : null
+  const registration = user
+    ? await withDb(await getTrustedActor(), async (ctx) =>
+        getRegistration(ctx, post.id, user.id)
+      )
+    : null
   const status = registration?.status ?? null
   const showLocation = canSeeLocation(post, { status, canManage })
 
   return (
-    <article className="mx-auto max-w-3xl space-y-12">
-      <div className="flex items-center justify-between gap-4">
+    <article className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 font-mono text-[0.78rem] tracking-[0.06em] uppercase transition-colors hover:text-[var(--brand)]"
-          style={{ color: "var(--text-dim)" }}
+          className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-2 text-sm"
         >
-          <ArrowLeft className="size-3.5" /> Back to discover
+          <ArrowLeft className="size-4" aria-hidden />
+          Back to discover
         </Link>
         {canManage && (
           <Link
             href={`/dashboard/c/${post.communitySlug}/posts/${post.id}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
+            className={buttonVariants({ variant: "outline" })}
           >
-            Manage
+            Manage {post.isEvent ? "event" : "post"}
           </Link>
         )}
       </div>
-
-      <header className="hairline-bottom space-y-6 pb-10">
-        <div className="flex flex-wrap items-center gap-4">
+      <header className="space-y-4 border-b pb-7">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           <Link
             href={`/communities/${post.communitySlug}`}
-            className="inline-flex items-center gap-2 transition-colors hover:text-[var(--brand)]"
-            style={{ color: "var(--text)" }}
+            className="mr-1 max-w-full font-medium break-words hover:underline"
           >
-            <span
-              className="size-1.5 rounded-full"
-              style={{ background: "var(--brand)" }}
-              aria-hidden
-            />
-            <span className="font-medium">{post.communityName}</span>
+            {post.communityName}
           </Link>
-          <span className="mono-label">{post.isEvent ? "Event" : "Note"}</span>
+          <Badge variant="secondary">
+            {post.isEvent ? "Event" : "Announcement"}
+          </Badge>
           {post.visibility === "vit_only" && (
-            <span
-              className="mono-label inline-flex items-center gap-1"
-              style={{ color: "var(--text-muted)" }}
-            >
-              <Lock className="size-3" aria-hidden /> VIT only
-            </span>
+            <Badge variant="outline">
+              <Lock aria-hidden />
+              VIT only
+            </Badge>
           )}
           {post.status !== "published" && (
             <Badge variant="outline" className="capitalize">
@@ -91,51 +92,63 @@ export default async function PostPage({ params }: Props) {
             </Badge>
           )}
         </div>
-
-        <h1
-          className="display-xl text-balance"
-          style={{ color: "var(--text)" }}
-        >
+        <h1 className="max-w-4xl text-3xl leading-tight font-semibold tracking-tight text-balance break-words md:text-4xl">
           {post.title}
         </h1>
-
         {post.authorName && (
-          <p className="font-mono text-sm" style={{ color: "var(--text-dim)" }}>
+          <p className="text-muted-foreground text-sm break-words">
             Posted by {post.authorName}
           </p>
         )}
+        {post.status !== "published" && (
+          <p className="text-muted-foreground text-sm break-words">
+            This post is {post.status} and does not appear in public discovery.
+          </p>
+        )}
       </header>
-
-      {post.isEvent && post.startsAt && (
-        <EventMeta post={post} showLocation={showLocation} />
-      )}
-
-      <section className="space-y-5">
-        <div className="eyebrow">About</div>
-        <p
-          className="text-[1.05rem] leading-[1.65] whitespace-pre-line"
-          style={{ color: "var(--text)" }}
+      <div
+        className={
+          post.isEvent
+            ? "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]"
+            : "max-w-3xl"
+        }
+      >
+        <section
+          className="order-2 min-w-0 space-y-4 lg:order-1"
+          aria-labelledby="about-heading"
         >
-          {post.body}
-        </p>
-      </section>
-
-      {post.isEvent && (
-        <RegistrationPanel
-          postId={post.id}
-          slug={post.slug}
-          signedIn={!!user}
-          requiresApproval={post.requiresApproval}
-          availability={registrationAvailability(post, post.seatsTaken)}
-          status={status}
-          closesOn={
-            post.registrationClosesAt
-              ? formatShortDate(post.registrationClosesAt)
-              : null
-          }
-          seatsLeft={seatsLeft(post.capacity, post.seatsTaken)}
-        />
-      )}
+          <h2 id="about-heading" className="text-sm font-semibold">
+            {post.isEvent ? "About this event" : "Announcement"}
+          </h2>
+          <p className="max-w-[72ch] text-base leading-7 break-words whitespace-pre-line">
+            {post.body}
+          </p>
+        </section>
+        {post.isEvent && (
+          <aside
+            className="order-1 min-w-0 space-y-4 lg:sticky lg:top-24 lg:order-2"
+            aria-label="Event details and registration"
+          >
+            {post.startsAt && (
+              <EventMeta post={post} showLocation={showLocation} />
+            )}
+            <RegistrationPanel
+              postId={post.id}
+              slug={post.slug}
+              signedIn={!!user}
+              requiresApproval={post.requiresApproval}
+              availability={registrationAvailability(post, post.seatsTaken)}
+              status={status}
+              closesOn={
+                post.registrationClosesAt
+                  ? formatShortDate(post.registrationClosesAt)
+                  : null
+              }
+              seatsLeft={seatsLeft(post.capacity, post.seatsTaken)}
+            />
+          </aside>
+        )}
+      </div>
     </article>
   )
 }
@@ -152,79 +165,91 @@ function EventMeta({
     post.startsAt,
     post.endsAt ?? undefined
   )
-
   return (
-    <dl className="surface grid grid-cols-1 divide-y md:grid-cols-3 md:divide-x md:divide-y-0 [&_*]:divide-[var(--border)] [&>*]:p-6">
-      <MetaBlock label="When">
-        <div style={{ color: "var(--text)" }}>{date}</div>
-        <div className="font-mono text-sm" style={{ color: "var(--text-dim)" }}>
-          {time}
-        </div>
-      </MetaBlock>
-      <MetaBlock label="Where">
-        <div style={{ color: "var(--text)" }}>
-          {showLocation ? (
-            (post.location ?? "TBD")
-          ) : (
-            <span className="inline-flex items-center gap-1.5">
-              <Lock className="size-4" aria-hidden /> Address after approval
-            </span>
-          )}
-        </div>
-      </MetaBlock>
-      <MetaBlock label="Capacity">
-        {typeof post.capacity === "number" ? (
-          <>
-            <div style={{ color: "var(--text)" }}>
-              {post.seatsTaken} / {post.capacity}
+    <Card>
+      <CardContent>
+        <dl className="divide-y text-sm">
+          <div className="flex gap-3 pb-4">
+            <CalendarDays
+              className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              aria-hidden
+            />
+            <div className="space-y-1">
+              <dt className="text-muted-foreground text-xs">Date and time</dt>
+              <dd className="font-medium">
+                {date}
+                <span className="text-muted-foreground mt-1 block text-xs font-normal">
+                  {time} IST
+                </span>
+              </dd>
             </div>
-            <div
-              className="font-mono text-sm"
-              style={{ color: "var(--text-dim)" }}
-            >
-              {Math.max(0, post.capacity - post.seatsTaken)} spots left
+          </div>
+          <div className="flex gap-3 py-4">
+            <MapPin
+              className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              aria-hidden
+            />
+            <div className="min-w-0 space-y-1">
+              <dt className="text-muted-foreground text-xs">Location</dt>
+              <dd className="break-words">
+                {showLocation ? (
+                  (post.location ?? "To be announced")
+                ) : (
+                  <span className="flex items-start gap-1.5">
+                    <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    Shared after approval
+                  </span>
+                )}
+              </dd>
             </div>
-          </>
-        ) : (
-          <div style={{ color: "var(--text)" }}>Unlimited</div>
-        )}
-      </MetaBlock>
-    </dl>
-  )
-}
-
-function MetaBlock({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-2">
-      <dt className="mono-label">{label}</dt>
-      <dd className="text-base">{children}</dd>
-    </div>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <Users
+              className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              aria-hidden
+            />
+            <div className="space-y-1">
+              <dt className="text-muted-foreground text-xs">Capacity</dt>
+              <dd>
+                {typeof post.capacity === "number" ? (
+                  <>
+                    {post.seatsTaken} of {post.capacity} spots taken
+                    <span className="text-muted-foreground mt-1 block text-xs">
+                      {Math.max(0, post.capacity - post.seatsTaken)} spots
+                      remaining
+                    </span>
+                  </>
+                ) : (
+                  "No capacity limit"
+                )}
+              </dd>
+            </div>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
   )
 }
 
 function SignInWall({ slug, title }: { slug: string; title: string }) {
   return (
-    <div className="mx-auto flex min-h-[50vh] max-w-xl flex-col items-center justify-center gap-6 text-center">
-      <div className="eyebrow justify-center">VIT only</div>
-      <h1 className="display-md" style={{ color: "var(--text)" }}>
+    <div className="mx-auto max-w-2xl space-y-6 py-8">
+      <h1 className="text-3xl font-semibold tracking-tight text-balance break-words">
         {title}
       </h1>
-      <p style={{ color: "var(--text-dim)" }}>
-        This post is visible to VIT students. Sign in with your VOSS account to
-        read it.
-      </p>
-      <Link
-        href={`/login?next=/posts/${slug}`}
-        className={buttonVariants({ size: "lg" })}
-      >
-        Sign in with VOSS
-      </Link>
+      <EmptyState
+        title="This post is for VIT students"
+        body="Sign in with your VOSS account to read this post and see its event details."
+        icon={<Lock />}
+        action={
+          <Link
+            href={`/login?next=/posts/${slug}`}
+            className={buttonVariants({ size: "lg" })}
+          >
+            Sign in with VOSS
+          </Link>
+        }
+      />
     </div>
   )
 }

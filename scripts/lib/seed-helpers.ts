@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { eq } from "drizzle-orm"
-import { db } from "@/db"
+import type { SeedDatabase } from "./seed-db"
 import { user } from "@/db/schema"
 import type { RegistrationStatus } from "@/lib/registration"
 
@@ -47,7 +47,11 @@ export function studentIdentity(i: number) {
   }
 }
 
-export async function upsertUser(name: string, email: string) {
+export async function upsertUser(
+  db: SeedDatabase,
+  name: string,
+  email: string
+) {
   const existing = await db.query.user.findFirst({
     where: eq(user.email, email),
     columns: { id: true },

@@ -58,24 +58,24 @@ Install via CLI as needed: `npx shadcn@latest add <component>`
 1. "Continue with VOSS" starts an OAuth 2.1 + PKCE flow against accounts.vosslabs.org (Better Auth `genericOAuth`, provider id `voss`)
 2. VOSS verifies the `@vit.edu.in` mailbox with a one-time code; vboard never sees a password
 3. vboard rejects any non-`@vit.edu.in` identity again at user creation (defence in depth)
-4. On every session: ensure a `profile` row exists with the `student` site role
+4. On authenticated domain access: ensure a default `profile` row exists; resolve authority from current SQL allowlist and active community assignments
 5. Session cookie via the Better Auth `nextCookies` plugin; 7-day sessions that slide daily
 
 Local development cannot complete a VOSS login, so `VBOARD_DEV_AUTH=1` enables a seeded persona switcher on the login page. Only authentication is bypassed; roles resolve from the database exactly as in production. It is refused by `next build` and ignored when `NODE_ENV=production`.
 
 ### Roles
 
-Five layers: visitor, student, community team (lead / manager / volunteer), site admin, super admin. The full capability matrix and the roadmap for further layers live in `research/rbac.md`.
+Four roles: Super admin, Lead, Organizer and Student. Visitor is unauthenticated. See `research/rbac.md` for the enforced matrix.
 
 ### Permission rules
 
 ```
-manage post X       = site admin OR (manager|lead of X.communityId)
-decide registration = site admin OR (manager|lead of the event's community)
-check in attendee   = site admin OR (any team role in the event's community)
-manage team of Y    = site admin OR (lead of Y), leads cannot appoint leads
-create community    = site admin
-appoint admin       = super admin (SUPER_ADMIN_EMAILS)
+manage posts/events = Super admin OR (Lead|Organizer of the event community)
+decide/checkin/export = current event operator
+manage team/settings = Super admin OR Lead of that active community
+appoint/change Lead = Super admin only
+create/archive community = Super admin only
+profile/history/register/cancel = authenticated self, under SQL eligibility rules
 ```
 
 ## Database Schema
@@ -92,19 +92,6 @@ vboard-owned tables:
 - bio (text, nullable)
 - isActive, timestamps
 
-### role (2 seeded rows) — replaced by `profile.site_role` enum in the MVP
-
-- name (unique) — `admin`, `student`
-- displayName, description, hierarchyLevel (admin=100, student=10)
-- permissions (jsonb, default `{}`)
-- isActive, timestamps
-
-### user_role (junction)
-
-- userId, roleId (unique together)
-- assignedBy (FK, nullable), expiresAt (nullable)
-- isActive, timestamps
-
 ### community
 
 - slug (unique), name, description
@@ -115,7 +102,7 @@ vboard-owned tables:
 ### community_member
 
 - communityId, userId (unique together)
-- role (enum: `lead` | `manager` | `volunteer`)
+- role (enum: `lead` | `organizer`)
 - addedBy, joinedAt, isActive
 
 ### post (unified — text or event)
@@ -165,7 +152,7 @@ Validation enforced at server boundary (Zod): if `isEvent = true`, `startsAt` an
 ### Phase 2 — Communities
 
 - Schema: `community`, `community_member`
-- Site admin: create community (form with R2 logo + cover upload)
+- Super admin: create community (form with R2 logo + cover upload)
 - Community admin: add/remove members
 - Public community page (logo, about, posts feed for that community)
 - Communities directory page
@@ -208,6 +195,6 @@ Validation enforced at server boundary (Zod): if `isEvent = true`, `startsAt` an
 - Validation: Zod at every server boundary
 - Imports: `@/` alias, never relative
 - Format: Prettier (2 spaces, double quotes, no semicolons); run `npm run check` before commit
-- Migrations: `npm run db:generate` after schema changes, `npm run db:push` to apply locally, `npm run db:migrate` in production
+- Migrations: `npm run db:generate` after schema changes, `npm run db:migrate` locally and in production; provision restricted principals before runtime verification
 - File size: 200–400 lines max per file; split when it grows
 - shadcn components installed on demand: `npx shadcn@latest add <component>` — don't preinstall components we won't use

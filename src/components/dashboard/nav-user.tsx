@@ -1,6 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import { useTransition } from "react"
+import { toast } from "sonner"
 import {
   EllipsisVerticalIcon,
   GlobeIcon,
@@ -32,6 +34,13 @@ export function NavUser({
   user: { name: string; email: string; role: string }
 }) {
   const { isMobile } = useSidebar()
+  const [signingOut, startTransition] = useTransition()
+  function signOut() {
+    startTransition(async () => {
+      const result = await signOutAction()
+      if (!result.ok) toast.error(result.error)
+    })
+  }
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -89,9 +98,9 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void signOutAction()}>
+            <DropdownMenuItem onClick={signOut} disabled={signingOut}>
               <LogOutIcon />
-              Sign out
+              {signingOut ? "Signing out…" : "Sign out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

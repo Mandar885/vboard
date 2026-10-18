@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   CalendarCheckIcon,
+  CalendarIcon,
   HistoryIcon,
   LayoutDashboardIcon,
   ShieldIcon,
@@ -23,11 +24,14 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 const ICONS = {
   overview: LayoutDashboardIcon,
   registrations: CalendarCheckIcon,
+  events: CalendarIcon,
   profile: UserIcon,
   communities: ShieldIcon,
   people: UsersIcon,
@@ -44,11 +48,6 @@ export type SidebarItem = {
 
 export type SidebarSection = { label?: string; items: SidebarItem[] }
 
-function isActive(pathname: string, url: string) {
-  if (url === "/dashboard") return pathname === "/dashboard"
-  return pathname === url || pathname.startsWith(`${url}/`)
-}
-
 export function AppSidebar({
   sections,
   user,
@@ -58,22 +57,38 @@ export function AppSidebar({
   user: { name: string; email: string; role: string }
 }) {
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useSidebar()
+  const activeUrl = sections
+    .flatMap((section) => section.items)
+    .filter(
+      (item) =>
+        pathname === item.url ||
+        (item.url !== "/dashboard" && pathname.startsWith(`${item.url}/`))
+    )
+    .sort((a, b) => b.url.length - a.url.length)[0]?.url
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:p-1.5!"
               render={<Link href="/" />}
+              tooltip="vboard"
+              onClick={() => {
+                if (isMobile) setOpenMobile(false)
+              }}
             >
               <span className="bg-primary text-primary-foreground grid size-6 place-items-center rounded-md text-xs font-black">
                 v
               </span>
-              <span className="flex items-end gap-1 text-base font-extrabold tracking-[-0.045em]">
+              <span className="flex items-end gap-1 text-base font-extrabold tracking-[-0.045em] group-data-[collapsible=icon]:hidden">
                 vboard
-                <span className="bg-brand-pure mb-[3px] size-1.5" aria-hidden />
+                <span
+                  className="bg-brand mb-[3px] size-1.5 rounded-full"
+                  aria-hidden
+                />
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -93,8 +108,11 @@ export function AppSidebar({
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={isActive(pathname, item.url)}
+                        isActive={activeUrl === item.url}
                         render={<Link href={item.url} />}
+                        onClick={() => {
+                          if (isMobile) setOpenMobile(false)
+                        }}
                       >
                         {Icon ? (
                           <Icon />
@@ -121,6 +139,7 @@ export function AppSidebar({
       <SidebarFooter>
         <NavUser user={user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }

@@ -1,59 +1,47 @@
 import { config } from "dotenv"
-config({ path: ".env.local" })
+import { pathToFileURL } from "node:url"
+import { Pool } from "pg"
+import { migrationFiles } from "@/db/migration-files"
 
-import * as fs from "fs"
-import * as path from "path"
-import { isLocalPostgres } from "../src/db/driver"
-
-const MIGRATIONS_DIR = path.join(__dirname, "..", "src", "db", "migrations")
-
-function makePool(url: string) {
-  if (isLocalPostgres(url)) {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    const { Pool: PgPool } = require("pg")
-    /* eslint-enable @typescript-eslint/no-require-imports */
-    return new PgPool({ connectionString: url })
+export async function checkMigrations(pool: Pool) {
+  const files = await migrationFiles()
+  const { rows } = await pool.query<{
+    filename: string
+    checksum: string | null
+  }>("SELECT filename,checksum FROM public._migrations ORDER BY filename")
+  const mismatches: string[] = []
+  for (const file of files) {
+    const applied = rows.find((row) => row.filename === file.filename)
+    if (!applied) mismatches.push(`not applied: ${file.filename}`)
+    else if (applied.checksum !== file.checksum)
+      mismatches.push(`checksum mismatch: ${file.filename}`)
   }
-  /* eslint-disable @typescript-eslint/no-require-imports */
-  const { Pool: NeonPool, neonConfig } = require("@neondatabase/serverless")
-  const ws = require("ws")
-  /* eslint-enable @typescript-eslint/no-require-imports */
-  neonConfig.webSocketConstructor = ws
-  return new NeonPool({ connectionString: url })
+  for (const applied of rows) {
+    if (!files.some((file) => file.filename === applied.filename))
+      mismatches.push(`applied but not in the repo: ${applied.filename}`)
+  }
+  if (mismatches.length) throw new Error(mismatches.join("\n"))
+  return files.length
 }
 
-async function run() {
-  const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL
-  if (!url) {
-    console.error("DATABASE_URL is not set")
-    process.exit(1)
+async function main() {
+  config({ path: ".env.local", quiet: true })
+  if (!process.env.DIRECT_URL) throw new Error("DIRECT_URL is required")
+  const pool = new Pool({ connectionString: process.env.DIRECT_URL, max: 1 })
+  try {
+    const count = await checkMigrations(pool)
+    console.log(
+      `${count} migration(s) applied, checksums and ledger match the repo`
+    )
+  } finally {
+    await pool.end()
   }
-
-  const files = fs.existsSync(MIGRATIONS_DIR)
-    ? fs
-        .readdirSync(MIGRATIONS_DIR)
-        .filter((f) => f.endsWith(".sql") && !f.startsWith("0000"))
-        .sort()
-    : []
-
-  const pool = makePool(url)
-  const { rows } = await pool.query("SELECT filename FROM _migrations")
-  await pool.end()
-
-  const applied = new Set<string>(
-    rows.map((r: { filename: string }) => r.filename)
-  )
-  const missing = files.filter((f) => !applied.has(f))
-  const unknown = [...applied].filter((f) => !files.includes(f))
-
-  for (const f of missing) console.error(`not applied: ${f}`)
-  for (const f of unknown) console.error(`applied but not in the repo: ${f}`)
-
-  if (missing.length > 0 || unknown.length > 0) process.exit(1)
-  console.log(`${files.length} migration(s) applied, ledger matches the repo`)
 }
 
-run().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
+  main().catch((error) => {
+    console.error(
+      error instanceof Error ? error.message : "Migration check failed"
+    )
+    process.exitCode = 1
+  })

@@ -1,5 +1,8 @@
 import Link from "next/link"
-import { ArrowUpRight } from "lucide-react"
+import { Wrench } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button-variants"
 
 type Props = {
   title?: string
@@ -15,81 +18,42 @@ export function UnderConstruction({
   phase,
 }: Props) {
   return (
-    <section
-      className="surface space-y-6 p-8"
-      style={{ background: "var(--bg-elevated)" }}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <div className="eyebrow">Under development</div>
-          <h2 className="display-md" style={{ color: "var(--text)" }}>
-            {title}
-          </h2>
-          {description && (
-            <p
-              className="max-w-[52ch] text-[0.95rem] leading-relaxed"
-              style={{ color: "var(--text-dim)" }}
-            >
-              {description}
-            </p>
-          )}
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle>{title}</CardTitle>
+          {phase && <Badge variant="outline">{phase}</Badge>}
         </div>
-        {phase && (
-          <span
-            className="font-mono text-[0.7rem] tracking-[0.12em] whitespace-nowrap uppercase"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {phase}
-          </span>
+        {description && (
+          <p className="text-muted-foreground max-w-prose text-sm leading-relaxed">
+            {description}
+          </p>
         )}
-      </div>
-
-      {upcoming && upcoming.length > 0 && (
-        <div className="hairline-top space-y-3 pt-5">
-          <div className="mono-label">What&apos;s coming</div>
-          <ul className="space-y-2">
-            {upcoming.map((item) => (
-              <li
-                key={item}
-                className="flex items-start gap-3 text-[0.95rem]"
-                style={{ color: "var(--text)" }}
-              >
-                <span
-                  className="mt-2 size-1.5 shrink-0 rounded-full"
-                  style={{ background: "var(--brand)" }}
-                  aria-hidden
-                />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1.5 font-mono text-[0.78rem] tracking-[0.06em] uppercase transition-colors hover:text-[var(--brand)]"
-        style={{ color: "var(--text)" }}
-      >
-        Back to discover <ArrowUpRight className="size-3.5" aria-hidden />
-      </Link>
-    </section>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {upcoming && upcoming.length > 0 && (
+          <div className="space-y-2 border-t pt-4">
+            <h3 className="text-sm font-medium">Planned next</h3>
+            <ul className="text-muted-foreground list-inside list-disc space-y-2 text-sm">
+              {upcoming.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Link href="/" className={buttonVariants({ variant: "outline" })}>
+          Back to discover
+        </Link>
+      </CardContent>
+    </Card>
   )
 }
 
 export function DevelopmentNotice({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="flex items-start gap-3 rounded-[var(--radius-sm)] border px-4 py-3 text-[0.85rem]"
-      style={{
-        borderColor: "var(--brand)",
-        background: "color-mix(in oklab, var(--brand) 8%, transparent)",
-        color: "var(--text)",
-      }}
-    >
-      <span
-        className="mt-1.5 size-1.5 shrink-0 rounded-full"
-        style={{ background: "var(--brand)" }}
+    <div className="bg-muted flex items-start gap-3 rounded-lg border px-4 py-3 text-sm leading-relaxed">
+      <Wrench
+        className="text-muted-foreground mt-0.5 size-4 shrink-0"
         aria-hidden
       />
       <div>{children}</div>

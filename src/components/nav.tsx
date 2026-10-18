@@ -2,128 +2,155 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import {
+  CalendarDays,
+  Compass,
+  LayoutDashboard,
+  Menu,
+  Users,
+} from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { initials } from "@/lib/identity"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
-  { href: "/", label: "Discover" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/communities", label: "Communities" },
+  { href: "/", label: "Discover", icon: Compass },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/communities", label: "Communities", icon: Users },
 ] as const
 
 function isActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/"
-  return pathname === href || pathname.startsWith(`${href}/`)
+  return href === "/"
+    ? pathname === "/"
+    : pathname === href || pathname.startsWith(`${href}/`)
 }
 
 export function Nav({ user }: { user: { name: string } | null }) {
   const pathname = usePathname()
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+  const [open, setOpen] = useState(false)
 
   return (
-    <nav
-      className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-colors duration-300",
-        "border-b border-[var(--border)]",
-        scrolled ? "bg-[var(--bg)]" : "bg-transparent"
-      )}
-    >
-      <div className="container">
-        <div className="flex h-16 items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-end gap-1.5"
-            aria-label="vboard home"
-          >
-            <span
-              className="text-[1.25rem] leading-none font-extrabold tracking-[-0.045em]"
-              style={{ color: "var(--text)" }}
+    <header className="bg-background/95 sticky top-0 z-40 border-b backdrop-blur-sm">
+      <div className="container flex h-16 items-center gap-8">
+        <Link
+          href="/"
+          className="flex min-h-11 shrink-0 items-center gap-2"
+          aria-label="vboard home"
+        >
+          <span className="text-xl font-bold tracking-tight">vboard</span>
+          <span className="bg-brand size-2 rounded-sm" aria-hidden />
+        </Link>
+        <nav
+          aria-label="Main navigation"
+          className="hidden h-full items-center gap-6 md:flex"
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={isActive(pathname, link.href) ? "page" : undefined}
+              className={cn(
+                "hover:text-foreground relative flex h-full items-center text-sm font-medium transition-colors",
+                isActive(pathname, link.href)
+                  ? "text-foreground after:bg-brand after:absolute after:inset-x-0 after:bottom-0 after:h-0.5"
+                  : "text-muted-foreground"
+              )}
             >
-              vboard
-            </span>
-            <span
-              className="mb-[3px] block size-2.5"
-              style={{ background: "var(--brand-pure)" }}
-              aria-hidden
-            />
-          </Link>
-
-          <ul className="hidden items-center gap-7 md:flex">
-            {navLinks.map((link) => (
-              <li key={link.href}>
-                <Link
-                  href={link.href}
-                  data-active={isActive(pathname, link.href) || undefined}
-                  className="relative inline-block py-1.5 font-mono text-[0.78rem] font-medium tracking-[0.06em] uppercase transition-colors hover:text-[var(--text)] data-[active=true]:text-[var(--brand)] data-[active=true]:after:absolute data-[active=true]:after:right-0 data-[active=true]:after:bottom-0 data-[active=true]:after:left-0 data-[active=true]:after:h-[2px] data-[active=true]:after:bg-[var(--brand)]"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-            <li
-              aria-hidden
-              className="mx-1 h-4 w-px"
-              style={{ background: "var(--border)" }}
-            />
-            {user ? (
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2.5 rounded-[var(--radius-sm)] py-1 pr-3 pl-1 font-mono text-[0.78rem] font-medium tracking-[0.06em] uppercase transition-colors"
-                  style={{ background: "var(--text)", color: "var(--bg)" }}
-                >
-                  <span
-                    className="grid size-6 place-items-center rounded-[var(--radius-sm)] text-[0.65rem]"
-                    style={{ background: "var(--brand-pure)", color: "#fff" }}
-                    aria-hidden
-                  >
-                    {initials(user.name)}
-                  </span>
-                  Dashboard
-                </Link>
-              </li>
-            ) : (
-              <>
-                <li>
-                  <Link
-                    href="/login"
-                    className="font-mono text-[0.78rem] font-medium tracking-[0.06em] uppercase transition-colors hover:text-[var(--brand)]"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    Sign in
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] px-4 py-2 font-mono text-[0.78rem] font-medium tracking-[0.06em] uppercase transition-colors"
-                    style={{ background: "var(--text)", color: "var(--bg)" }}
-                  >
-                    Join <span aria-hidden>→</span>
-                  </Link>
-                </li>
-              </>
-            )}
-          </ul>
-
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <Link
             href={user ? "/dashboard" : "/login"}
-            className="rounded-[var(--radius-sm)] px-3 py-1.5 font-mono text-[0.78rem] font-medium tracking-[0.06em] uppercase md:hidden"
-            style={{ background: "var(--text)", color: "var(--bg)" }}
+            className={buttonVariants({
+              variant: "outline",
+              className: "hidden md:inline-flex",
+            })}
           >
-            {user ? "Dashboard" : "Join"}
+            {user && (
+              <span
+                className="bg-muted grid size-5 place-items-center rounded-full text-[10px]"
+                aria-hidden
+              >
+                {initials(user.name)}
+              </span>
+            )}
+            {user ? "Workspace" : "Sign in"}
           </Link>
+          <div className="md:hidden">
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Open navigation"
+                  />
+                }
+              >
+                <Menu aria-hidden />
+              </SheetTrigger>
+              <SheetContent className="w-[min(90vw,360px)]! gap-0">
+                <SheetHeader className="border-b p-5">
+                  <SheetTitle>vboard</SheetTitle>
+                  <SheetDescription>
+                    Events and communities at VIT.
+                  </SheetDescription>
+                </SheetHeader>
+                <nav aria-label="Mobile navigation" className="grid gap-1 p-3">
+                  {navLinks.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setOpen(false)}
+                      aria-current={
+                        isActive(pathname, href) ? "page" : undefined
+                      }
+                      className={cn(
+                        "flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm font-medium",
+                        isActive(pathname, href)
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden />
+                      {label}
+                    </Link>
+                  ))}
+                </nav>
+                <div className="mt-auto border-t p-5">
+                  {user && (
+                    <p className="text-muted-foreground mb-3 truncate text-sm">
+                      Signed in as {user.name}
+                    </p>
+                  )}
+                  <Link
+                    href={user ? "/dashboard" : "/login"}
+                    onClick={() => setOpen(false)}
+                    className={buttonVariants({ className: "w-full" })}
+                  >
+                    {user && <LayoutDashboard aria-hidden />}
+                    {user ? "Open workspace" : "Sign in with VOSS"}
+                  </Link>
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
-    </nav>
+    </header>
   )
 }

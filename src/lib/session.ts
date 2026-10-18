@@ -1,24 +1,24 @@
 import { cache } from "react"
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
+import { withDb, type DbActor } from "@/db"
+import { ensureProfile, getProfile, isSuperAdmin } from "@/db/queries/profiles"
+import {
+  getCommunityBySlug,
+  listMembershipsForUser,
+} from "@/db/queries/communities"
+import { auth, verifyAuthDatabase } from "@/lib/auth"
+import { isVerifiedVitIdentity } from "@/lib/auth-config"
 import { devIdentity } from "@/lib/dev-auth"
-import { parseEmailList, normalizeEmail } from "@/lib/identity"
 import {
   communityCan,
   communityCapabilities,
-  isSiteAdmin,
   siteCan,
   type CommunityCapability,
   type CommunityRole,
   type SiteCapability,
   type SiteRole,
 } from "@/lib/rbac"
-import { getProfile } from "@/db/queries/profiles"
-import {
-  getCommunityBySlug,
-  listMembershipsForUser,
-} from "@/db/queries/communities"
 
 export type Membership = {
   communityId: string
@@ -26,7 +26,6 @@ export type Membership = {
   name: string
   role: CommunityRole
 }
-
 export type SessionUser = {
   id: string
   name: string
@@ -38,53 +37,47 @@ export type SessionUser = {
   bio: string | null
   memberships: Membership[]
 }
-
-async function realIdentity() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) return null
-  return {
-    id: session.user.id,
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image ?? null,
-  }
-}
-
-function isSuperAdminEmail(email: string): boolean {
-  return parseEmailList(process.env.SUPER_ADMIN_EMAILS).includes(
-    normalizeEmail(email)
-  )
-}
-
-export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const identity = (await devIdentity()) ?? (await realIdentity())
-  if (!identity) return null
-
-  const [profile, memberships] = await Promise.all([
-    getProfile(identity.id),
-    listMembershipsForUser(identity.id),
-  ])
-
-  const siteRole: SiteRole = isSuperAdminEmail(identity.email)
-    ? "super_admin"
-    : (profile?.siteRole ?? "student")
-
-  return {
-    ...identity,
-    siteRole,
-    rollNumber: profile?.rollNumber ?? null,
-    department: profile?.department ?? null,
-    bio: profile?.bio ?? null,
-    memberships,
-  }
+const getIdentity = cache(async () => {
+  const requestHeaders = await headers()
+  const dev = await devIdentity()
+  if (dev) return dev
+  await verifyAuthDatabase()
+  const session = await auth.api.getSession({ headers: requestHeaders })
+  return session?.user && isVerifiedVitIdentity(session.user)
+    ? {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image ?? null,
+      }
+    : null
 })
-
+export async function getTrustedActor(): Promise<DbActor | null> {
+  const identity = await getIdentity()
+  return identity ? { userId: identity.id } : null
+}
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+  const identity = await getIdentity()
+  if (!identity) return null
+  return withDb({ userId: identity.id }, async (ctx) => {
+    await ensureProfile(ctx)
+    const profile = await getProfile(ctx, identity.id)
+    const memberships = await listMembershipsForUser(ctx, identity.id)
+    return {
+      ...identity,
+      siteRole: (await isSuperAdmin(ctx)) ? "super_admin" : "student",
+      rollNumber: profile?.rollNumber ?? null,
+      department: profile?.department ?? null,
+      bio: profile?.bio ?? null,
+      memberships,
+    }
+  })
+})
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser()
   if (!user) redirect("/login")
   return user
 }
-
 export async function requireSiteCapability(
   capability: SiteCapability
 ): Promise<SessionUser> {
@@ -92,16 +85,16 @@ export async function requireSiteCapability(
   if (!siteCan(user.siteRole, capability)) notFound()
   return user
 }
-
 export function roleIn(
   user: SessionUser,
   communityId: string
 ): CommunityRole | null {
   return (
-    user.memberships.find((m) => m.communityId === communityId)?.role ?? null
+    user.memberships.find(
+      (membership) => membership.communityId === communityId
+    )?.role ?? null
   )
 }
-
 export type CommunityAccess = {
   user: SessionUser
   community: NonNullable<Awaited<ReturnType<typeof getCommunityBySlug>>>
@@ -109,35 +102,39 @@ export type CommunityAccess = {
   capabilities: ReadonlySet<CommunityCapability>
   can: (capability: CommunityCapability) => boolean
 }
-
 export async function getCommunityAccess(
   user: SessionUser,
   slug: string
 ): Promise<CommunityAccess | null> {
-  const community = await getCommunityBySlug(slug)
-  if (!community) return null
-  const role = roleIn(user, community.id)
-  const capabilities = communityCapabilities(user.siteRole, role)
-  if (capabilities.size === 0) return null
-  return {
-    user,
-    community,
-    role,
-    capabilities,
-    can: (capability) => communityCan(user.siteRole, role, capability),
-  }
+  return withDb({ userId: user.id }, async (ctx) => {
+    const community = await getCommunityBySlug(ctx, slug)
+    if (!community) return null
+    const superAdmin = await isSuperAdmin(ctx)
+    if (!community.isActive && !superAdmin) return null
+    const memberships = await listMembershipsForUser(ctx, user.id)
+    const role =
+      memberships.find((membership) => membership.communityId === community.id)
+        ?.role ?? null
+    const siteRole = superAdmin ? "super_admin" : "student"
+    const capabilities = communityCapabilities(siteRole, role)
+    if (!capabilities.size) return null
+    return {
+      user: { ...user, siteRole, memberships },
+      community,
+      role,
+      capabilities,
+      can: (capability) => communityCan(siteRole, role, capability),
+    }
+  })
 }
-
 export async function requireCommunityAccess(
   slug: string,
   capability: CommunityCapability = "post:read"
 ): Promise<CommunityAccess> {
-  const user = await requireUser()
-  const access = await getCommunityAccess(user, slug)
-  if (!access || !access.can(capability)) notFound()
+  const access = await getCommunityAccess(await requireUser(), slug)
+  if (!access?.can(capability)) notFound()
   return access
 }
-
 export async function actionCommunityAccess(
   slug: unknown,
   capability: CommunityCapability
@@ -146,7 +143,12 @@ export async function actionCommunityAccess(
   const user = await getSessionUser()
   if (!user) return null
   const access = await getCommunityAccess(user, slug)
-  if (!access || !access.can(capability)) return null
-  if (!access.community.isActive && !isSiteAdmin(user.siteRole)) return null
-  return access
+  return access?.can(capability) ? access : null
+}
+export async function actionPostAccess(
+  slug: unknown,
+  _postId: unknown,
+  capability: CommunityCapability
+): Promise<CommunityAccess | null> {
+  return actionCommunityAccess(slug, capability)
 }

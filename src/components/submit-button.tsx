@@ -34,6 +34,7 @@ export function SubmitButton({
       size={size}
       className={className}
       disabled={pending || disabled}
+      aria-busy={pending}
     >
       {pending && (
         <Loader2Icon data-icon="inline-start" className="animate-spin" />

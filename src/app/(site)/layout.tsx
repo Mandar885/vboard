@@ -9,10 +9,12 @@ export default async function SiteLayout({
 }) {
   const user = await getSessionUser()
   return (
-    <>
+    <div className="flex min-h-dvh flex-col">
       <Nav user={user ? { name: user.name } : null} />
-      <main className="container pt-28 pb-16">{children}</main>
+      <main id="main-content" className="container flex-1 py-8 md:py-10">
+        {children}
+      </main>
       <Footer />
-    </>
+    </div>
   )
 }

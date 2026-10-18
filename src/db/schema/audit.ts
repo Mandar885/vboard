@@ -1,3 +1,4 @@
+import { domainPolicies } from "@/db/schema/rls"
 import {
   index,
   jsonb,
@@ -13,7 +14,7 @@ export const auditLog = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     actorId: text("actor_id").references(() => user.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     action: text("action").notNull(),
     targetType: text("target_type").notNull(),
@@ -25,7 +26,8 @@ export const auditLog = pgTable(
       .defaultNow(),
   },
   (t) => [
+    ...domainPolicies("audit"),
     index("audit_log_created_idx").on(t.createdAt),
     index("audit_log_community_idx").on(t.communityId),
   ]
-)
+).enableRLS()

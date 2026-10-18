@@ -1,0 +1,13 @@
+# Database and identity boundaries
+
+Domain code imports `withDb` and `DbContext` from `@/db`. Query functions take context first and use its transaction. Actor input is only `{ userId }` resolved from verified server identity, or null for visitors. Never accept actor or authority flags from forms. Public pages use `withDb(await getTrustedActor(), ...)`. Protected actions use central capability guards, validate exact owning community/event inside the transaction, and revalidate/redirect only after commit.
+
+`DATABASE_URL` authenticates restricted `vboard_app`. `AUTH_DATABASE_URL` authenticates bounded `vboard_auth` and has no fallback. Only `src/lib/auth.ts` and guarded `src/lib/dev-auth.ts` may import the auth database module. Every auth entry point awaits the exported principal verifier before querying. Auth creation rechecks the VIT email domain. First domain access creates the default profile under the user's actor.
+
+`DIRECT_URL` belongs to administrative provisioning and ordered migration scripts only. Runtime must not import it or administrative pools. Provisioning synchronizes the private SQL allowlist from `SUPER_ADMIN_EMAILS`; re-run provisioning when it changes. Super admin presentation comes from the same checked SQL result. Lead and Organizer require current active community assignments. Local personas replace authentication only and use this same domain path.
+
+RLS, checked projections and invariant triggers enforce authorization and privacy. Do not select raw posts for public/student content or redact sensitive fields only in React. Use the existing safe projections for discovery/detail/calendar/history, scoped attendee/team identity, aggregate counts and exact-email delegation. Metadata uses the same detail boundary. Never globally cache actor-specific data.
+
+All domain mutations insert audit using the same context. Keep ownership/actor identity immutable. Event capacity and all seat allocation share one event advisory transaction lock. Bulk decisions reject missing, cross-event or invalid-transition rows wholly. Delete posts by deactivating; preserve registration history. Students can retry only cancelled records.
+
+Use incremental numbered SQL migrations, never edit an applied migration, push the schema as setup, or mark unapplied SQL as baseline. Upgrade existing data without reseeding. Destructive fixtures share the guard that rejects routing query overrides and validates node-postgres's effective loopback target and explicit database without connecting; disposable integration databases also require the test prefix. Fixtures are privileged scripts, never runtime imports. Do not run a seed against an existing workspace dataset without explicit authorization.

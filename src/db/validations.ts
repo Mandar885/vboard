@@ -1,4 +1,6 @@
 import { z } from "zod"
+import { createInsertSchema } from "drizzle-zod"
+import { community, communityMember, post, profile } from "@/db/schema"
 import { parseCampusDateTime } from "@/lib/format"
 
 const optionalText = (max: number) =>
@@ -26,8 +28,23 @@ const checkbox = z
   .optional()
   .transform((v) => v === "on" || v === "true")
 
-export const postFormSchema = z
-  .object({
+export const postFormSchema = createInsertSchema(post)
+  .pick({
+    title: true,
+    body: true,
+    visibility: true,
+    isPinned: true,
+    isEvent: true,
+    startsAt: true,
+    endsAt: true,
+    location: true,
+    locationVisibility: true,
+    registrationOpensAt: true,
+    registrationClosesAt: true,
+    capacity: true,
+    requiresApproval: true,
+  })
+  .extend({
     title: z.string().trim().min(3, "Title is too short").max(140),
     body: z.string().trim().min(1, "Write something").max(10000),
     visibility: z.enum(["public", "vit_only"]),
@@ -57,6 +74,7 @@ export const postFormSchema = z
     requiresApproval: checkbox,
     intent: z.enum(["draft", "publish", "save"]),
   })
+  .strict()
   .superRefine((v, ctx) => {
     if (!v.isEvent) return
     if (!v.startsAt)
@@ -105,47 +123,66 @@ export const postFormSchema = z
     intent: v.intent,
   }))
 
-export const communityFormSchema = z.object({
-  name: z.string().trim().min(2, "Name is too short").max(80),
-  description: z.string().trim().max(600),
-  logoUrl: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : v))
-    .pipe(z.url("Logo must be a URL").nullable()),
-})
+export const communityFormSchema = createInsertSchema(community)
+  .pick({ name: true, description: true, logoUrl: true })
+  .extend({
+    name: z.string().trim().min(2, "Name is too short").max(80),
+    description: z.string().trim().max(600),
+    logoUrl: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : v))
+      .pipe(
+        z
+          .url({
+            protocol: /^https?$/,
+            error: "Logo must be an HTTP or HTTPS URL",
+          })
+          .nullable()
+      ),
+  })
+  .strict()
 
-export const newCommunitySchema = z.object({
-  name: z.string().trim().min(2, "Name is too short").max(80),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(
-      /^[a-z0-9]+(-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers and hyphens"
-    )
-    .max(60),
-  description: z.string().trim().max(600),
-  leadEmail: z
-    .string()
-    .trim()
-    .transform((v) => (v === "" ? null : v.toLowerCase()))
-    .pipe(z.email("Enter a valid email").nullable()),
-})
+export const newCommunitySchema = createInsertSchema(community)
+  .pick({ name: true, slug: true, description: true })
+  .extend({
+    name: z.string().trim().min(2, "Name is too short").max(80),
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(
+        /^[a-z0-9]+(-[a-z0-9]+)*$/,
+        "Use lowercase letters, numbers and hyphens"
+      )
+      .max(60),
+    description: z.string().trim().max(600),
+    leadEmail: z
+      .string()
+      .trim()
+      .transform((v) => (v === "" ? null : v.toLowerCase()))
+      .pipe(z.email("Enter a valid email").nullable()),
+  })
+  .strict()
 
-export const memberFormSchema = z.object({
-  email: z
-    .email("Enter a valid email")
-    .transform((v) => v.trim().toLowerCase()),
-  role: z.enum(["lead", "manager", "volunteer"]),
-})
+export const memberFormSchema = createInsertSchema(communityMember)
+  .pick({ role: true })
+  .extend({
+    email: z
+      .email("Enter a valid email")
+      .transform((v) => v.trim().toLowerCase()),
+    role: createInsertSchema(communityMember).shape.role.unwrap(),
+  })
+  .strict()
 
-export const profileFormSchema = z.object({
-  rollNumber: optionalText(30),
-  department: optionalText(60),
-  bio: optionalText(400),
-})
+export const profileFormSchema = createInsertSchema(profile)
+  .pick({ rollNumber: true, department: true, bio: true })
+  .extend({
+    rollNumber: optionalText(30),
+    department: optionalText(60),
+    bio: optionalText(400),
+  })
+  .strict()
 
 export function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Check the form and try again"

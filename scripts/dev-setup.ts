@@ -40,7 +40,7 @@ function readEnvLocal(): Record<string, string> {
 function assertLocal() {
   const file = readEnvLocal()
   const checks: [string, string, string][] = []
-  for (const name of ["DATABASE_URL", "DIRECT_URL"]) {
+  for (const name of ["DATABASE_URL", "AUTH_DATABASE_URL", "DIRECT_URL"]) {
     if (file[name]) checks.push([name, file[name], ".env.local"])
     if (process.env[name]) checks.push([name, process.env[name]!, "the shell"])
   }
@@ -50,20 +50,20 @@ function assertLocal() {
 
   console.error("\n  Refusing to continue.\n")
   for (const [name, url, source] of remote) {
-    let host = url
+    let host = "invalid URL"
     try {
       host = new URL(url).hostname
     } catch {}
     console.error(`    ${name} points at ${host}  (from ${source})`)
   }
   console.error(`
-  This command pushes a schema and rewrites data, and only ever runs against
+  This command provisions roles, applies migrations and loads local fixtures, and only ever runs against
   the local container.
 `)
   if (remote.some(([, , source]) => source === "the shell")) {
     console.error(`  That value is exported in your shell, which beats .env.local. Unset it:
 
-    unset DATABASE_URL DIRECT_URL
+    unset DATABASE_URL AUTH_DATABASE_URL DIRECT_URL
     npm run dev:setup
 `)
   } else {
@@ -127,19 +127,20 @@ async function main() {
   await waitForPostgres(bin, sub)
 
   step(4, "schema")
-  run("npx", ["drizzle-kit", "push", "--force"])
-  run("npx", ["tsx", "src/db/migrate.ts", "--baseline"])
+  run("node", ["--import", "tsx", "src/db/provision.ts"])
+  run("node", ["--import", "tsx", "src/db/migrate.ts"])
+  run("node", ["--import", "tsx", "src/db/verify.ts"])
 
   step(5, "mock data")
-  run("npx", ["tsx", "scripts/seed-dev.ts"])
+  run("node", ["--import", "tsx", "scripts/seed-dev.ts"])
 
   console.log(`
 Ready. Start the app:
 
   npm run dev
 
-Then open http://localhost:3000/login and pick who you are: super admin,
-site admin, community lead, manager, volunteer or student. No VOSS
+Then open http://localhost:3000/login and pick a persona: Super admin,
+Lead, Organizer or Student. No VOSS
 credentials needed; roles still resolve from the database.
 
   npm run dev:seed    rewrite the mock data

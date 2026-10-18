@@ -28,25 +28,25 @@ export default async function CommunityLayout({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <Avatar className="size-12 rounded-lg">
             <AvatarFallback className="bg-primary text-primary-foreground rounded-lg text-lg font-semibold">
               {access.community.name.charAt(0)}
             </AvatarFallback>
           </Avatar>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight break-words">
               {access.community.name}
             </h1>
             <div className="flex flex-wrap items-center gap-2">
-              <RoleBadge role={access.role ?? "admin"} />
+              <RoleBadge role={access.role ?? "super_admin"} />
               {!access.community.isActive && (
                 <Badge variant="destructive">Archived</Badge>
               )}
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/communities/${slug}`}
             className={buttonVariants({ variant: "outline" })}

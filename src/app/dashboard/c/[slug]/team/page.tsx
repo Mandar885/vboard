@@ -1,7 +1,14 @@
+import { withDb } from "@/db"
+import { RecordTable } from "@/components/dashboard/record-table"
 import { ActionForm } from "@/components/action-form"
 import { ConfirmSubmit } from "@/components/confirm-submit"
 import { AutoSubmitSelect } from "@/components/dashboard/role-select"
-import { Panel, RoleBadge } from "@/components/dashboard/ui"
+import {
+  EmptyState,
+  FormFooter,
+  Panel,
+  RoleBadge,
+} from "@/components/dashboard/ui"
 import { FormSelect } from "@/components/form-select"
 import { SubmitButton } from "@/components/submit-button"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +20,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -33,7 +39,7 @@ import {
   addMemberAction,
   changeMemberRoleAction,
   removeMemberAction,
-} from "./actions"
+} from "@/app/dashboard/c/[slug]/team/actions"
 
 export default async function TeamPage({
   params,
@@ -42,7 +48,9 @@ export default async function TeamPage({
 }) {
   const { slug } = await params
   const access = await requireCommunityAccess(slug, "member:read")
-  const members = await listMembers(access.community.id)
+  const members = await withDb({ userId: access.user.id }, async (ctx) =>
+    listMembers(ctx, access.community.id)
+  )
   const assignable = assignableCommunityRoles(access.user.siteRole, access.role)
   const canManage = access.can("member:manage")
   const actor = { siteRole: access.user.siteRole, communityRole: access.role }
@@ -54,92 +62,103 @@ export default async function TeamPage({
         description={`${members.length} people help run ${access.community.name}.`}
         flush
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-6">Member</TableHead>
-              <TableHead>Roll no.</TableHead>
-              <TableHead>Role</TableHead>
-              {canManage && (
-                <TableHead className="pr-6 text-right">Actions</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {members.map((m) => {
-              const editable =
-                canManage &&
-                canChangeMember(actor, {
-                  role: m.role,
-                  isSelf: m.userId === access.user.id,
-                })
-              return (
-                <TableRow key={m.id}>
-                  <TableCell className="pl-6">
-                    <div className="flex items-center gap-2 font-medium">
-                      {m.name}
-                      {m.userId === access.user.id && (
-                        <Badge variant="secondary">You</Badge>
-                      )}
-                    </div>
-                    <div className="text-muted-foreground text-xs">
-                      {m.email}
-                    </div>
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {m.rollNumber ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    {editable ? (
-                      <AutoSubmitSelect
-                        action={changeMemberRoleAction}
-                        hidden={{ slug, memberId: m.id }}
-                        name="role"
-                        label={`Role for ${m.name}`}
-                        current={m.role}
-                        options={(assignable.includes(m.role)
-                          ? assignable
-                          : [m.role, ...assignable]
-                        ).map((r) => ({
-                          value: r,
-                          label: COMMUNITY_ROLE_LABEL[r],
-                        }))}
-                      />
-                    ) : (
-                      <RoleBadge role={m.role} />
-                    )}
-                  </TableCell>
-                  {canManage && (
-                    <TableCell className="pr-6 text-right">
-                      {editable && (
-                        <ActionForm
-                          action={removeMemberAction}
-                          className="inline"
-                        >
-                          <input type="hidden" name="slug" value={slug} />
-                          <input type="hidden" name="memberId" value={m.id} />
-                          <ConfirmSubmit
-                            label="Remove"
-                            title={`Remove ${m.name}?`}
-                            description="They lose access to this community's dashboard straight away."
-                            confirmLabel="Remove"
-                          />
-                        </ActionForm>
+        {members.length === 0 ? (
+          <EmptyState
+            title="No team members"
+            body="Add an existing vboard account to start building this team."
+            className="m-4"
+          />
+        ) : (
+          <RecordTable>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="pl-6">Member</TableHead>
+                <TableHead>Roll no.</TableHead>
+                <TableHead>Role</TableHead>
+                {canManage && (
+                  <TableHead className="pr-6 text-right">Actions</TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map((m) => {
+                const editable =
+                  canManage &&
+                  canChangeMember(actor, {
+                    role: m.role,
+                    isSelf: m.userId === access.user.id,
+                  })
+                return (
+                  <TableRow key={m.id}>
+                    <TableCell className="pl-6">
+                      <div className="flex items-center gap-2 font-medium">
+                        {m.name}
+                        {m.userId === access.user.id && (
+                          <Badge variant="secondary">You</Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground text-xs">
+                        {m.email}
+                      </div>
+                    </TableCell>
+                    <TableCell data-label="Roll no." className="tabular-nums">
+                      {m.rollNumber ?? "—"}
+                    </TableCell>
+                    <TableCell data-label="Role">
+                      {editable ? (
+                        <AutoSubmitSelect
+                          action={changeMemberRoleAction}
+                          hidden={{ slug, memberId: m.id }}
+                          name="role"
+                          label={`Role for ${m.name}`}
+                          current={m.role}
+                          options={(assignable.includes(m.role)
+                            ? assignable
+                            : [m.role, ...assignable]
+                          ).map((r) => ({
+                            value: r,
+                            label: COMMUNITY_ROLE_LABEL[r],
+                          }))}
+                        />
+                      ) : (
+                        <RoleBadge role={m.role} />
                       )}
                     </TableCell>
-                  )}
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+                    {canManage && (
+                      <TableCell
+                        data-label="Actions"
+                        className="pr-6 text-right"
+                      >
+                        {editable && (
+                          <ActionForm
+                            action={removeMemberAction}
+                            className="inline"
+                          >
+                            <input type="hidden" name="slug" value={slug} />
+                            <input type="hidden" name="memberId" value={m.id} />
+                            <ConfirmSubmit
+                              label="Remove"
+                              title={`Remove ${m.name}?`}
+                              description="They lose access to this community's dashboard straight away."
+                              confirmLabel="Remove"
+                            />
+                          </ActionForm>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </RecordTable>
+        )}
       </Panel>
 
       <div className="flex flex-col gap-6">
         {canManage && (
           <Panel
             title="Add to the team"
-            description="They need to have signed in to vboard once."
+            description="Add someone who has already signed in to vboard. Their role determines what they can manage."
           >
             <ActionForm action={addMemberAction}>
               <input type="hidden" name="slug" value={slug} />
@@ -161,7 +180,9 @@ export default async function TeamPage({
                     name="role"
                     label="Role"
                     defaultValue={
-                      assignable.includes("manager") ? "manager" : assignable[0]
+                      assignable.includes("organizer")
+                        ? "organizer"
+                        : assignable[0]
                     }
                     items={assignable.map((r) => ({
                       value: r,
@@ -170,13 +191,13 @@ export default async function TeamPage({
                   />
                   <FieldDescription>
                     {access.role === "lead"
-                      ? "Only vboard admins appoint leads."
-                      : "Admins can appoint leads."}
+                      ? "Only Super admin appoints Leads."
+                      : "Super admin can appoint Leads."}
                   </FieldDescription>
                 </Field>
-                <div>
+                <FormFooter>
                   <SubmitButton pendingLabel="Adding…">Add member</SubmitButton>
-                </div>
+                </FormFooter>
               </FieldGroup>
             </ActionForm>
           </Panel>
@@ -184,7 +205,7 @@ export default async function TeamPage({
 
         <Panel title="What each role can do">
           <ul className="grid gap-4">
-            {(["lead", "manager", "volunteer"] as CommunityRole[]).map((r) => (
+            {(["lead", "organizer"] as CommunityRole[]).map((r) => (
               <li key={r} className="grid gap-1.5">
                 <RoleBadge role={r} />
                 <p className="text-muted-foreground text-sm">

@@ -17,11 +17,15 @@ export function RouteTabs({
 
   return (
     <Tabs value={active}>
-      <TabsList variant="line">
+      <TabsList
+        variant="line"
+        className="h-auto min-h-11 flex-wrap justify-start"
+      >
         {items.map((item) => (
           <TabsTrigger
             key={item.href}
             value={item.href}
+            className="min-h-11"
             nativeButton={false}
             render={<Link href={item.href} />}
           >

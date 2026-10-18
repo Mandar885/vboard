@@ -1,5 +1,12 @@
+import Link from "next/link"
 import { ActionForm } from "@/components/action-form"
-import { PageHeader, Panel, RoleBadge } from "@/components/dashboard/ui"
+import {
+  EmptyState,
+  FormFooter,
+  PageHeader,
+  Panel,
+  RoleBadge,
+} from "@/components/dashboard/ui"
 import { FormSelect } from "@/components/form-select"
 import { SubmitButton } from "@/components/submit-button"
 import {
@@ -12,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { SITE_ROLE_LABEL } from "@/lib/rbac"
 import { requireUser } from "@/lib/session"
-import { updateProfileAction } from "./actions"
+import { updateProfileAction } from "@/app/dashboard/profile/actions"
 
 const DEPARTMENTS = ["CMPN", "INFT", "EXTC", "BIOMED", "MECH", "CIVIL", "Other"]
 
@@ -27,7 +34,10 @@ export default async function ProfilePage() {
       />
 
       <div className="grid gap-6 @5xl/main:grid-cols-[1.5fr_1fr]">
-        <Panel title="Details">
+        <Panel
+          title="Registration details"
+          description="Keep these up to date before joining an event."
+        >
           <ActionForm
             key={[user.rollNumber, user.department, user.bio].join("|")}
             action={updateProfileAction}
@@ -69,9 +79,9 @@ export default async function ProfilePage() {
                   Shown to organisers alongside your registration.
                 </FieldDescription>
               </Field>
-              <div>
+              <FormFooter description="Shared with event organizers when you register.">
                 <SubmitButton pendingLabel="Saving…">Save profile</SubmitButton>
-              </div>
+              </FormFooter>
             </FieldGroup>
           </ActionForm>
         </Panel>
@@ -88,7 +98,9 @@ export default async function ProfilePage() {
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Email</dt>
-                <dd className="truncate font-medium">{user.email}</dd>
+                <dd className="min-w-0 text-right font-medium break-all">
+                  {user.email}
+                </dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Site role</dt>
@@ -100,17 +112,24 @@ export default async function ProfilePage() {
           </Panel>
           <Panel title="Teams">
             {user.memberships.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                Not on any community team.
-              </p>
+              <EmptyState
+                title="No team memberships"
+                body="Your community roles will appear here."
+                className="border-0 px-0 py-3"
+              />
             ) : (
               <ul className="grid gap-3">
                 {user.memberships.map((m) => (
                   <li
                     key={m.communityId}
-                    className="flex items-center justify-between text-sm"
+                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
                   >
-                    <span className="font-medium">{m.name}</span>
+                    <Link
+                      href={`/dashboard/c/${m.slug}`}
+                      className="font-medium hover:underline"
+                    >
+                      {m.name}
+                    </Link>
                     <RoleBadge role={m.role} />
                   </li>
                 ))}
