@@ -5,6 +5,7 @@ import {
   getTrustedActor,
 } from "@/lib/session"
 const mocks = vi.hoisted(() => ({
+  headers: vi.fn(),
   verify: vi.fn(),
   identity: vi.fn(),
   realSession: vi.fn(),
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   community: vi.fn(),
 }))
 vi.mock("react", () => ({ cache: (fn: unknown) => fn }))
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }))
+vi.mock("next/headers", () => ({ headers: mocks.headers }))
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("Not found")
@@ -46,6 +47,7 @@ const identity = {
 }
 beforeEach(() => {
   vi.resetAllMocks()
+  mocks.headers.mockResolvedValue(new Headers())
   mocks.identity.mockResolvedValue(identity)
   mocks.withDb.mockImplementation(async (_actor, work) =>
     work({ actorId: identity.id, tx: {} })
@@ -61,6 +63,17 @@ beforeEach(() => {
   })
 })
 describe("verified actor and current SQL authority", () => {
+  it("propagates dynamic rendering bailout before identity or database access", async () => {
+    const bailout = new Error("Dynamic server usage: headers")
+    mocks.headers.mockRejectedValue(bailout)
+    mocks.identity.mockResolvedValue(null)
+    await expect(getTrustedActor()).rejects.toBe(bailout)
+    await expect(getSessionUser()).rejects.toBe(bailout)
+    expect(mocks.identity).not.toHaveBeenCalled()
+    expect(mocks.verify).not.toHaveBeenCalled()
+    expect(mocks.realSession).not.toHaveBeenCalled()
+    expect(mocks.withDb).not.toHaveBeenCalled()
+  })
   it("rejects an invalid auth principal before invoking the session adapter", async () => {
     mocks.identity.mockResolvedValue(null)
     mocks.verify.mockRejectedValue(new Error("Unsafe auth principal"))

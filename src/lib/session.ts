@@ -38,10 +38,11 @@ export type SessionUser = {
   memberships: Membership[]
 }
 const getIdentity = cache(async () => {
+  const requestHeaders = await headers()
   const dev = await devIdentity()
   if (dev) return dev
   await verifyAuthDatabase()
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.api.getSession({ headers: requestHeaders })
   return session?.user && isVerifiedVitIdentity(session.user)
     ? {
         id: session.user.id,
