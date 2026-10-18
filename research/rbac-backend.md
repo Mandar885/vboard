@@ -2,6 +2,8 @@
 
 2026-10-18. Boss authorized replacing the old permission backend with Super admin, committee Lead, committee Organizer and Student. Lead inherits organizer operations. Existing UI work and application data must be preserved.
 
+The original separate auth-credential proposal below was superseded by Boss's explicit single-URL decision. Current implementation uses restricted `vboard_app` for both domain transactions and local Better Auth tables; the adapter/import boundary protects auth access within the trusted server. See [the current privilege matrix](./neon-services.md#one-runtime-url-and-privilege-matrix).
+
 ## Verified reference
 
 VERP actual schema/domain-query conventions are documented in .preset/VERP_BACKEND_REFERENCE.md. It has no implemented RLS; proposed RLS in its architecture research is deferred. Reuse one schema/query file per domain, schema-derived boundary validation, capability checks separate from resource ownership, real-user dev personas and soft-delete patterns. Do not copy its Neon HTTP database type cast, lack of interactive transactions, or separate domain-write/audit calls.

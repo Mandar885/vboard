@@ -15,9 +15,9 @@ let verified: Promise<void> | undefined
 
 function getDatabase() {
   if (!database) {
-    const pool = createPool("DATABASE_URL")
+    const pool = createPool()
     runtimePool = pool
-    verified = verifyPrincipal(pool, "vboard_app")
+    verified = verifyPrincipal(pool)
     database = drizzle(pool, { schema })
   }
   return database

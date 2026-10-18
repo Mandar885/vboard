@@ -3,12 +3,8 @@ import { sql } from "drizzle-orm"
 import { withDb, closeDatabase } from "@/db/context"
 import { authDb, verifyAuthDatabase, closeAuthDatabase } from "@/db/auth-db"
 
-type RuntimeUrls = { ownerUrl: string; appUrl: string; authUrl: string }
-export async function testRuntimeBoundaries({
-  ownerUrl,
-  appUrl,
-  authUrl,
-}: RuntimeUrls) {
+type RuntimeUrls = { ownerUrl: string; appUrl: string }
+export async function testRuntimeBoundaries({ ownerUrl, appUrl }: RuntimeUrls) {
   await closeDatabase()
   process.env.DATABASE_URL = ownerUrl
   await assert.rejects(
@@ -47,19 +43,23 @@ export async function testRuntimeBoundaries({
     () => Reflect.get(authDb, "query"),
     /verification must complete/
   )
+  delete process.env.DATABASE_URL
   process.env.AUTH_DATABASE_URL = ownerUrl
-  await assert.rejects(verifyAuthDatabase(), /restricted vboard_auth/)
+  await assert.rejects(verifyAuthDatabase(), /DATABASE_URL is not set/)
+  process.env.DATABASE_URL = ownerUrl
+  await assert.rejects(verifyAuthDatabase(), /restricted vboard_app/)
   assert.throws(
     () => Reflect.get(authDb, "query"),
     /verification must complete/
   )
   await closeAuthDatabase()
-  process.env.AUTH_DATABASE_URL = authUrl
+  process.env.DATABASE_URL = appUrl
+  delete process.env.AUTH_DATABASE_URL
   await verifyAuthDatabase()
   assert.equal(
     (await authDb.execute<{ actor: string }>(sql`select current_user actor`))
       .rows[0].actor,
-    "vboard_auth"
+    "vboard_app"
   )
   await closeAuthDatabase()
 }

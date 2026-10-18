@@ -22,10 +22,8 @@ async function main() {
   const suffix = randomBytes(6).toString("hex")
   const passwords = {
     appPassword: process.env.VBOARD_APP_PASSWORD,
-    authPassword: process.env.VBOARD_AUTH_PASSWORD,
   }
-  if (!passwords.appPassword || !passwords.authPassword)
-    throw new Error("Provisioning password variables are required")
+  if (!passwords.appPassword) throw new Error("VBOARD_APP_PASSWORD is required")
   try {
     for (const kind of ["fresh", "legacy"]) {
       const name = `vboard_test_${kind}_${suffix}`
@@ -37,15 +35,10 @@ async function main() {
       const appUrl = new URL(target)
       appUrl.username = "vboard_app"
       appUrl.password = passwords.appPassword
-      const authUrl = new URL(target)
-      authUrl.username = "vboard_auth"
-      authUrl.password = passwords.authPassword
       const app = new Pool({ connectionString: appUrl.toString(), max: 5 })
-      const auth = new Pool({ connectionString: authUrl.toString(), max: 1 })
       try {
         await provision(owner, {
           appPassword: passwords.appPassword,
-          authPassword: passwords.authPassword,
           superAdminEmails: ["super@vit.edu.in"],
         })
         if (kind === "legacy") {
@@ -54,7 +47,7 @@ async function main() {
         }
         await migrate(owner)
         await migrate(owner)
-        await verifyDatabase(app, auth)
+        await verifyDatabase(app)
         if (kind === "legacy") {
           const roles = (
             await owner.query(
@@ -113,21 +106,18 @@ async function main() {
           await runSecurityTests({
             owner,
             app,
-            auth,
             appUrl: appUrl.toString(),
-            authUrl: authUrl.toString(),
           })
           await testFilteredProjections(owner, app)
           await testTransitionBoundaries(owner, app)
           await testRuntimeBoundaries({
             ownerUrl: target.toString(),
             appUrl: appUrl.toString(),
-            authUrl: authUrl.toString(),
           })
         }
         console.log(`${kind} migration and security checks passed`)
       } finally {
-        await Promise.all([owner.end(), app.end(), auth.end()])
+        await Promise.all([owner.end(), app.end()])
         await admin.query(`DROP DATABASE ${name}`)
       }
     }

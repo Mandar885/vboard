@@ -16,9 +16,7 @@ jobs:
     env:
       DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
       DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-      AUTH_DATABASE_URL: ${{ secrets.PRODUCTION_AUTH_DATABASE_URL }}
       VBOARD_APP_PASSWORD: ${{ secrets.PRODUCTION_APP_PASSWORD }}
-      VBOARD_AUTH_PASSWORD: ${{ secrets.PRODUCTION_AUTH_PASSWORD }}
       SUPER_ADMIN_EMAILS: ${{ secrets.PRODUCTION_SUPER_ADMIN_EMAILS }}
 
     steps:
@@ -26,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Check what this run is allowed to do
@@ -35,7 +33,7 @@ jobs:
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
           missing=0
-          for name in DIRECT_URL DATABASE_URL AUTH_DATABASE_URL VBOARD_APP_PASSWORD VBOARD_AUTH_PASSWORD SUPER_ADMIN_EMAILS HOOK; do
+          for name in DIRECT_URL DATABASE_URL VBOARD_APP_PASSWORD SUPER_ADMIN_EMAILS HOOK; do
             if [ -z "${!name}" ]; then
               echo "Required production configuration is missing: $name" >> "$GITHUB_STEP_SUMMARY"
               missing=1

@@ -29,7 +29,18 @@ export async function migrate(pool: Pool) {
       if (rows.some((row) => row.filename === file.filename)) continue
       await client.query("BEGIN")
       try {
+        const api = await client.query<{ present: boolean }>(
+          "SELECT to_regnamespace('vboard_api') IS NOT NULL AS present"
+        )
+        if (api.rows[0]?.present)
+          await client.query(
+            "GRANT CREATE ON SCHEMA vboard_api TO vboard_guard"
+          )
         await client.query(file.content)
+        if (api.rows[0]?.present)
+          await client.query(
+            "REVOKE CREATE ON SCHEMA vboard_api FROM vboard_guard"
+          )
         await client.query(
           "INSERT INTO public._migrations(filename,checksum) VALUES($1,$2)",
           [file.filename, file.checksum]

@@ -12,17 +12,16 @@ Open http://localhost:3000/login. The four choices are Super admin, Lead, Organi
 
 `dev:setup` copies `.env.development.example` when `.env.local` is absent, checks each configured PostgreSQL target, starts Docker PostgreSQL on port 5434, then runs provisioning, real ordered migrations, principal verification and local fixture loading. The shared guard rejects routing query overrides, requires an explicit database and checks node-postgres's effective host, database and port without connecting. Shell variables take precedence and are checked independently. It never pushes the current schema or marks unapplied migrations as applied.
 
-- `DATABASE_URL`: restricted `vboard_app`, used by `withDb` for domain transactions.
-- `AUTH_DATABASE_URL`: bounded `vboard_auth`, used only by Better Auth and guarded local identity lookup.
+- `DATABASE_URL`: the only runtime connection, restricted `vboard_app`, used by actor-bound domain transactions and the local Better Auth adapter.
 - `DIRECT_URL`: administrative connection used by migration, provisioning and fixture scripts.
-- `VBOARD_APP_PASSWORD` and `VBOARD_AUTH_PASSWORD`: provisioning passwords matching those runtime URLs.
+- `VBOARD_APP_PASSWORD`: provisioning password matching that runtime URL.
 - `SUPER_ADMIN_EMAILS`: canonical allowlist synchronized into private SQL configuration by provisioning.
 
 Run `npm run db:provision` again after changing configured Super admin emails. Merely changing the environment does not change existing SQL authority. Missing runtime credentials fail closed. All connections use node-postgres, including Neon TCP/TLS connections.
 
 ## Schema changes and migrations
 
-Drizzle metadata tracks the final declared tables, policies and checks. At the current schema, `npm run db:generate` produces no changes. Future schema changes append migrations numbered `0009` onward; review their SQL together with any required security functions, triggers and grants.
+Drizzle metadata tracks the final declared tables, policies and checks. At the current schema, `npm run db:generate` produces no changes. Migration `0009` intentionally grants the shared runtime principal access to Better Auth's four local tables and retires the old auth login. Future schema changes append migrations numbered `0010` onward; review their SQL together with any required security functions, triggers and grants.
 
 The custom checksum runner remains authoritative: use `npm run db:migrate` to apply SQL and `npm run db:migrate:status` to inspect the ledger. Do not use Drizzle's migrate command, schema push, or baseline marking for setup. Drizzle metadata supports generation; it does not replace the ordered security migrations or checksum ledger.
 
@@ -47,7 +46,9 @@ Use provisioning and `npm run db:migrate` to upgrade an existing database withou
 
 ## Verification
 
-Run `npm run check` before handing off code. `npm run db:verify` checks configured runtime principals; `npm run test:db` creates and removes separate loopback databases with the `vboard_test_` prefix to test fresh/legacy migrations and security. The integration harness requires local `DIRECT_URL` plus `VBOARD_APP_PASSWORD` and `VBOARD_AUTH_PASSWORD`, and uses separate restricted connections. A dev-persona journey proves the local domain path, not a real VOSS exchange or remote deployment.
+Run `npm run check` before handing off code. `npm run db:verify` checks the shared restricted runtime principal, intentional auth-table privileges, domain RLS/private-schema restrictions and retirement of the old auth role. `npm run test:db` creates and removes separate loopback databases with the `vboard_test_` prefix to test fresh/legacy migrations and security. It requires local `DIRECT_URL` plus `VBOARD_APP_PASSWORD`. A dev-persona journey proves the local domain path, not a real VOSS exchange or remote deployment.
+
+VAuth supplies external identity through OIDC. vboard's local user/account/session/verification tables still belong to Better Auth and use the same product database and runtime URL. The server credential can access these tables; the auth adapter/import boundary controls their use in application code. Domain RLS continues to scope profile, membership, event, registration and audit access. Never put the runtime credential in a browser.
 
 ## Production configuration
 
@@ -57,10 +58,8 @@ The `production-database` GitHub environment supplies the secrets used by `.gith
 | --- | --- |
 | `PRODUCTION_DIRECT_URL` | Administrative provisioning and migration connection |
 | `PRODUCTION_DATABASE_URL` | Restricted `vboard_app` runtime connection |
-| `PRODUCTION_AUTH_DATABASE_URL` | Bounded `vboard_auth` connection |
 | `PRODUCTION_APP_PASSWORD` | Provisioned password matching the application URL |
-| `PRODUCTION_AUTH_PASSWORD` | Provisioned password matching the auth URL |
 | `PRODUCTION_SUPER_ADMIN_EMAILS` | Canonical SQL allowlist synchronized by provisioning |
 | `VERCEL_DEPLOY_HOOK_URL` | Deployment hook invoked after database checks |
 
-The workflow provisions, migrates and verifies before invoking the hook when all required configuration is present. Configure the same runtime database URLs, auth/VOSS settings and canonical allowlist in the deployed application environment; keep administrative credentials confined to migration/provisioning infrastructure. The local verification evidence does not establish that these production secrets exist or that a remote deployment or real VOSS exchange has succeeded.
+The workflow provisions, migrates and verifies before invoking the hook when all required configuration is present. Configure the same runtime `DATABASE_URL` and auth/VOSS settings in the deployed application; the canonical allowlist is synchronized by provisioning. Keep administrative credentials confined to migration/provisioning infrastructure. No auth-specific database URL or password is required. The local verification evidence does not establish that production secrets exist or that a remote deployment or real VOSS exchange has succeeded.
