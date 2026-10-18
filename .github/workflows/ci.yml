@@ -15,7 +15,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - run: npm ci
@@ -36,7 +36,6 @@ jobs:
         run: npm run build
         env:
           DATABASE_URL: "postgresql://vboard_app:fake@localhost/fake"
-          AUTH_DATABASE_URL: "postgresql://vboard_auth:fake@localhost/fake"
           BETTER_AUTH_SECRET: "ci-secret"
           BETTER_AUTH_URL: "http://localhost:3000"
 
@@ -60,10 +59,8 @@ jobs:
 
     env:
       DATABASE_URL: "postgresql://vboard_app:app-ci@localhost:5432/vboard"
-      AUTH_DATABASE_URL: "postgresql://vboard_auth:auth-ci@localhost:5432/vboard"
       DIRECT_URL: "postgresql://vboard:vboard@localhost:5432/vboard"
       VBOARD_APP_PASSWORD: "app-ci"
-      VBOARD_AUTH_PASSWORD: "auth-ci"
       SUPER_ADMIN_EMAILS: "superadmin@vit.edu.in"
 
     steps:
@@ -71,7 +68,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - run: npm ci

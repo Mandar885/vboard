@@ -25,9 +25,7 @@ import { IDS } from "./db-test-fixtures"
 type TestPools = {
   owner: Pool
   app: Pool
-  auth: Pool
   appUrl: string
-  authUrl: string
 }
 export async function adminFixture(
   owner: Pool,
@@ -46,13 +44,7 @@ export async function adminFixture(
     client.release()
   }
 }
-export async function runSecurityTests({
-  owner,
-  app,
-  auth,
-  appUrl,
-  authUrl,
-}: TestPools) {
+export async function runSecurityTests({ owner, app, appUrl }: TestPools) {
   const db = drizzle(app, { schema })
   const asActor = <T>(
     actorId: string | null,
@@ -87,7 +79,7 @@ export async function runSecurityTests({
       if (error instanceof assert.AssertionError) throw error
     }
   }
-  await testPrincipalBoundaries(owner, app, auth)
+  await testPrincipalBoundaries(owner, app)
   await deny("student", "DELETE FROM public.registration")
   await deny("student", "TRUNCATE public.post")
   await deny("student", "SET ROLE vboard_guard")
@@ -363,7 +355,6 @@ export async function runSecurityTests({
     null
   )
   process.env.DATABASE_URL = appUrl
-  process.env.AUTH_DATABASE_URL = authUrl
   const { withDb, closeDatabase } = await import("@/db/context")
   assert.equal(
     await withDb(

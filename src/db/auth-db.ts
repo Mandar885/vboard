@@ -10,7 +10,7 @@ let authorized = false
 
 function getDatabase() {
   if (!database) {
-    pool = createPool("AUTH_DATABASE_URL")
+    pool = createPool()
     database = drizzle(pool, { schema })
   }
   return database
@@ -18,7 +18,7 @@ function getDatabase() {
 
 export async function verifyAuthDatabase() {
   getDatabase()
-  verified ??= verifyPrincipal(pool!, "vboard_auth")
+  verified ??= verifyPrincipal(pool!)
   await verified
   authorized = true
 }

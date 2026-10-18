@@ -40,7 +40,7 @@ function readEnvLocal(): Record<string, string> {
 function assertLocal() {
   const file = readEnvLocal()
   const checks: [string, string, string][] = []
-  for (const name of ["DATABASE_URL", "AUTH_DATABASE_URL", "DIRECT_URL"]) {
+  for (const name of ["DATABASE_URL", "DIRECT_URL"]) {
     if (file[name]) checks.push([name, file[name], ".env.local"])
     if (process.env[name]) checks.push([name, process.env[name]!, "the shell"])
   }
@@ -63,7 +63,7 @@ function assertLocal() {
   if (remote.some(([, , source]) => source === "the shell")) {
     console.error(`  That value is exported in your shell, which beats .env.local. Unset it:
 
-    unset DATABASE_URL AUTH_DATABASE_URL DIRECT_URL
+    unset DATABASE_URL DIRECT_URL
     npm run dev:setup
 `)
   } else {

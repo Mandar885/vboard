@@ -1,8 +1,8 @@
 import { Pool } from "pg"
 
-export function createPool(variable: "DATABASE_URL" | "AUTH_DATABASE_URL") {
-  const connectionString = process.env[variable]
-  if (!connectionString) throw new Error(`${variable} is not set`)
+export function createPool() {
+  const connectionString = process.env.DATABASE_URL
+  if (!connectionString) throw new Error("DATABASE_URL is not set")
   return new Pool({
     connectionString,
     max: 5,
@@ -12,10 +12,7 @@ export function createPool(variable: "DATABASE_URL" | "AUTH_DATABASE_URL") {
   })
 }
 
-export async function verifyPrincipal(
-  pool: Pool,
-  expected: "vboard_app" | "vboard_auth"
-) {
+export async function verifyPrincipal(pool: Pool) {
   const {
     rows: [role],
   } = await pool.query<{ valid: boolean }>(
@@ -27,10 +24,8 @@ export async function verifyPrincipal(
       AND NOT EXISTS (SELECT 1 FROM pg_class c WHERE c.relowner = r.oid AND c.relnamespace = 'public'::regnamespace)
       AND NOT has_schema_privilege(current_user, 'public', 'CREATE') AS valid
     FROM pg_roles r WHERE r.rolname = current_user`,
-    [expected]
+    ["vboard_app"]
   )
   if (!role?.valid)
-    throw new Error(
-      `Database principal must be the restricted ${expected} role`
-    )
+    throw new Error("Database principal must be the restricted vboard_app role")
 }
