@@ -114,11 +114,14 @@ export function FormFooter({
   )
 }
 
-export function RoleBadge({ role }: { role: CommunityRole | "admin" }) {
-  const label = role === "admin" ? "Site admin" : COMMUNITY_ROLE_LABEL[role]
+export function RoleBadge({ role }: { role: CommunityRole | "super_admin" }) {
+  const label =
+    role === "super_admin" ? "Super admin" : COMMUNITY_ROLE_LABEL[role]
   return (
     <Badge
-      variant={role === "lead" || role === "admin" ? "default" : "secondary"}
+      variant={
+        role === "lead" || role === "super_admin" ? "default" : "secondary"
+      }
     >
       {label}
     </Badge>

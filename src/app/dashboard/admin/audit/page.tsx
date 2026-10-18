@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import { EmptyState, PageHeader, Panel } from "@/components/dashboard/ui"
 import { Badge } from "@/components/ui/badge"
@@ -21,8 +22,10 @@ function describe(details: Record<string, unknown> | null) {
 }
 
 export default async function AuditPage() {
-  await requireSiteCapability("audit:read")
-  const entries = await listAuditLog()
+  const user = await requireSiteCapability("audit:read")
+  const entries = await withDb({ userId: user.id }, async (ctx) =>
+    listAuditLog(ctx)
+  )
 
   return (
     <>

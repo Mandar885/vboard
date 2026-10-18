@@ -1,0 +1,21 @@
+# VAuth integration
+
+Verified against `voss-labs/vauth/INTEGRATING.md` on2026-10-18 through authenticated read-only GitHub API. Public web fetch did not expose this repository. The guide and current `clients.config.ts` are the primary references.
+
+VAuth authenticates identity through OIDC authorization code plus S256 PKCE. vboard owns profile, committee assignments and capabilities. Retain Better Auth's Next.js genericOAuth provider `voss`, discovery, issuer validation, minimal openid/profile/email scopes, same-email trusted linking, no passwords and optional-name fallback. The existing client, handler, session guards and triple-locked local persona switcher already follow this pattern. Keep the bounded auth database and transaction/RLS boundaries added in this iteration.
+
+The guide permits verified `@vit.edu.in` and `@vosslabs.org` identities. vboard's accepted enrollment rule is verified VIT accounts only; keep that narrower policy at account creation and SQL actor validation. vboard has no imported ERP roster: its own profile is bound to the authenticated local user ID. Creating a Student profile for an authenticated verified VIT account is the explicit accepted product policy; it never grants committee/platform authority. Do not import VERP's unmatched-roster dead end or bind identities using submitted roll number/name.
+
+Current VAuth client configuration contains VERP only. No vboard client is registered in configuration, and local VOSS discovery/client ID/client secret values are unset. The guide's illustrative vboard snippet uses port5173, but explicitly requires the real framework port; this app uses3000. Required callback is `http://localhost:3000/api/auth/oauth2/callback/voss`, plus `https://vboard.vosslabs.org/api/auth/oauth2/callback/voss` for that deployment. A reviewed VAuth client entry and maintainer sync issue the secret once; never reuse VERP's credentials or copy secrets into research, issues or code.
+
+Implementation work: compare actual installed Better Auth behavior with the guide; make absent/partial VOSS configuration fail clearly without breaking local personas, verify incoming identity at the auth boundary, retain strict existing-account linking unless actual unverified legacy data requires the documented exception, and add meaningful config/identity/callback regression coverage. Prepare the exact registration change and update operational docs. Verify public discovery/JWKS if reachable without sending user identity; do not claim a real token exchange without a registered client and user sign-in.
+
+## Installed-library comparison and implementation
+
+Better Auth 1.6.23 was inspected directly: `plugins/generic-oauth/types.d.mts`, `routes.mjs`, `oauth2/link-account.mjs`, the memory adapter, cookie helpers and origin middleware. `requireIssuerValidation` checks the callback issuer response parameter, not a separate JWT/JWKS validation operation. The provider's user-info mapping runs before account creation and implicit same-email linking, so vboard rejects unverified/non-VIT identities there, with additional creation/session checks. Strict local-account email verification remains enabled.
+
+App-side provider registration is conditional on all three canonical VOSS settings. The login receives only readiness, direct unavailable handshakes return a safe response, and local personas/session reads stay functional. VOSS client credentials remain absent; no live exchange, IdP mutation or privileged default role is claimed.
+
+The real Better Auth memory-adapter callback suite has no network escape: discovery, token and user-info endpoints are mocked, and unexpected fetches fail. Origin and CSRF checks are explicitly enabled because Better Auth otherwise skips origin checks under its test environment. It covers PKCE/code verifier, exact callback URI, minimal scopes, post client authentication, name fallback, repeated identity, strict same-email linking, invalid identity, issuer/state rejection, disabled passwords and product-session invalidation.
+
+The exact reviewed registration addition is `research/vauth-client-registration.patch`, prepared against the current maintainer configuration read on 2026-10-18; the companion Markdown explains the private issuance and actual callback prerequisites. No credentials are included.

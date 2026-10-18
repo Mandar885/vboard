@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { newCommunitySchema, postFormSchema } from "@/db/validations"
+import {
+  memberFormSchema,
+  newCommunitySchema,
+  postFormSchema,
+  profileFormSchema,
+} from "@/db/validations"
 
 const base = {
   title: "Build with Gemma",
@@ -89,5 +94,42 @@ describe("newCommunitySchema", () => {
     })
     expect(result.success).toBe(true)
     expect(result.data?.leadEmail).toBeNull()
+  })
+})
+
+describe("strict writable field boundaries", () => {
+  it("rejects client authority fields on profile and post input", () => {
+    expect(
+      profileFormSchema.safeParse({
+        rollNumber: "",
+        department: "",
+        bio: "",
+        siteRole: "super_admin",
+      }).success
+    ).toBe(false)
+    expect(
+      postFormSchema.safeParse({ ...base, authorId: "forged" }).success
+    ).toBe(false)
+  })
+  it("accepts only current schema community roles", () => {
+    expect(
+      memberFormSchema.safeParse({
+        email: "student@vit.edu.in",
+        role: "organizer",
+      }).success
+    ).toBe(true)
+    expect(
+      memberFormSchema.safeParse({
+        email: "student@vit.edu.in",
+        role: "manager",
+      }).success
+    ).toBe(false)
+    expect(
+      memberFormSchema.safeParse({
+        email: "student@vit.edu.in",
+        role: "organizer",
+        addedBy: "forged",
+      }).success
+    ).toBe(false)
   })
 })

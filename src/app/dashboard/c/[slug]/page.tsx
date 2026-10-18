@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { PinIcon } from "lucide-react"
@@ -28,7 +29,9 @@ export default async function CommunityPostsPage({
 }) {
   const { slug } = await params
   const access = await requireCommunityAccess(slug)
-  const posts = await listCommunityPosts(access.community.id)
+  const posts = await withDb({ userId: access.user.id }, async (ctx) =>
+    listCommunityPosts(ctx, access.community.id)
+  )
 
   const now = new Date()
   const upcoming = posts.filter(

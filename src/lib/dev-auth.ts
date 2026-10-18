@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { eq } from "drizzle-orm"
-import { db } from "@/db"
+import { authDb, verifyAuthDatabase } from "@/db/auth-db"
 import * as schema from "@/db/schema"
 import { DEV_PERSONAS, findPersona, type DevPersona } from "@/lib/dev-personas"
 import { DEV_ACTOR_COOKIE, devAuthEnabled } from "@/lib/dev-auth-gate"
@@ -20,7 +20,8 @@ export async function devIdentity(): Promise<DevIdentity | null> {
   const persona = findPersona((await cookies()).get(DEV_ACTOR_COOKIE)?.value)
   if (!persona) return null
 
-  const row = await db.query.user.findFirst({
+  await verifyAuthDatabase()
+  const row = await authDb.query.user.findFirst({
     where: eq(schema.user.email, persona.email),
     columns: { id: true, name: true, email: true, image: true },
   })

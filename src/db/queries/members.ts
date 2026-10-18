@@ -1,82 +1,130 @@
-import { and, asc, eq, sql } from "drizzle-orm"
-import { db } from "@/db"
-import { communityMember, profile, user } from "@/db/schema"
-import type { CommunityRole } from "@/lib/rbac"
+import { and, eq, sql } from "drizzle-orm"
+import type { DbContext } from "@/db"
+import { communityMember } from "@/db/schema"
+import { createAuditLog } from "@/db/queries/audit"
+import {
+  projectionRows,
+  requireActor,
+  requireRow,
+} from "@/db/queries/projections"
 
-export async function listMembers(communityId: string) {
-  return db
-    .select({
-      id: communityMember.id,
-      userId: user.id,
-      name: user.name,
-      email: user.email,
-      role: communityMember.role,
-      joinedAt: communityMember.joinedAt,
-      rollNumber: profile.rollNumber,
-      department: profile.department,
-    })
-    .from(communityMember)
-    .innerJoin(user, eq(user.id, communityMember.userId))
-    .leftJoin(profile, eq(profile.userId, user.id))
-    .where(
-      and(
-        eq(communityMember.communityId, communityId),
-        eq(communityMember.isActive, true)
-      )
-    )
-    .orderBy(
-      sql`case ${communityMember.role} when 'lead' then 0 when 'manager' then 1 else 2 end`,
-      asc(user.name)
-    )
+type CommunityRole = typeof communityMember.$inferSelect.role
+export async function listMembers(ctx: DbContext, communityId: string) {
+  return projectionRows<{
+    id: string
+    userId: string
+    name: string
+    email: string
+    role: CommunityRole
+    isActive: boolean
+    joinedAt: Date
+    rollNumber: string | null
+    department: string | null
+  }>(
+    ctx,
+    sql`select data from vboard_api.community_members(${communityId}::uuid) data`
+  )
 }
-
-export async function getMember(communityId: string, userId: string) {
-  const row = await db.query.communityMember.findFirst({
-    where: and(
-      eq(communityMember.communityId, communityId),
-      eq(communityMember.userId, userId)
-    ),
-  })
-  return row ?? null
-}
-
-export async function getMemberById(id: string) {
-  const row = await db.query.communityMember.findFirst({
-    where: eq(communityMember.id, id),
-  })
-  return row ?? null
-}
-
-export async function upsertMember(data: {
-  communityId: string
+export async function getMember(
+  ctx: DbContext,
+  communityId: string,
   userId: string
+) {
+  return (
+    (
+      await ctx.tx
+        .select()
+        .from(communityMember)
+        .where(
+          and(
+            eq(communityMember.communityId, communityId),
+            eq(communityMember.userId, userId)
+          )
+        )
+    )[0] ?? null
+  )
+}
+export async function getMemberById(ctx: DbContext, id: string) {
+  return (
+    (
+      await ctx.tx
+        .select()
+        .from(communityMember)
+        .where(eq(communityMember.id, id))
+    )[0] ?? null
+  )
+}
+export async function upsertMember(
+  ctx: DbContext,
+  data: { communityId: string; userId: string; role: CommunityRole }
+) {
+  const addedBy = requireActor(ctx)
+  const row = requireRow(
+    await ctx.tx
+      .insert(communityMember)
+      .values({ ...data, addedBy })
+      .onConflictDoUpdate({
+        target: [communityMember.communityId, communityMember.userId],
+        set: { role: data.role, isActive: true, addedBy },
+      })
+      .returning()
+  )
+  await createAuditLog(ctx, {
+    action: "member.appointed",
+    targetType: "member",
+    targetId: row.id,
+    communityId: data.communityId,
+    details: { userId: data.userId, role: data.role },
+  })
+  return row
+}
+export async function setMemberRole(
+  ctx: DbContext,
+  communityId: string,
+  id: string,
   role: CommunityRole
-  addedBy: string
-}) {
-  await db
-    .insert(communityMember)
-    .values({ ...data, isActive: true })
-    .onConflictDoUpdate({
-      target: [communityMember.communityId, communityMember.userId],
-      set: {
-        role: data.role,
-        isActive: true,
-        addedBy: data.addedBy,
-        updatedAt: new Date(),
-      },
-    })
+) {
+  requireRow(
+    await ctx.tx
+      .update(communityMember)
+      .set({ role, addedBy: requireActor(ctx) })
+      .where(
+        and(
+          eq(communityMember.id, id),
+          eq(communityMember.communityId, communityId)
+        )
+      )
+      .returning()
+  )
+  await createAuditLog(ctx, {
+    action: "member.role",
+    targetType: "member",
+    targetId: id,
+    communityId,
+    details: { role },
+  })
 }
-
-export async function setMemberRole(id: string, role: CommunityRole) {
-  await db
-    .update(communityMember)
-    .set({ role, updatedAt: new Date() })
-    .where(eq(communityMember.id, id))
-}
-
-export async function deactivateMember(id: string) {
-  await db
-    .update(communityMember)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(communityMember.id, id))
+export async function deactivateMember(
+  ctx: DbContext,
+  communityId: string,
+  id: string
+) {
+  requireRow(
+    await ctx.tx
+      .update(communityMember)
+      .set({ isActive: false, addedBy: requireActor(ctx) })
+      .where(
+        and(
+          eq(communityMember.id, id),
+          eq(communityMember.communityId, communityId)
+        )
+      )
+      .returning()
+  )
+  await createAuditLog(ctx, {
+    action: "member.deactivated",
+    targetType: "member",
+    targetId: id,
+    communityId,
+  })
 }

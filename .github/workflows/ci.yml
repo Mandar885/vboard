@@ -35,7 +35,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          DATABASE_URL: "postgresql://fake:fake@localhost/fake"
+          DATABASE_URL: "postgresql://vboard_app:fake@localhost/fake"
+          AUTH_DATABASE_URL: "postgresql://vboard_auth:fake@localhost/fake"
           BETTER_AUTH_SECRET: "ci-secret"
           BETTER_AUTH_URL: "http://localhost:3000"
 
@@ -58,7 +59,12 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: "postgresql://vboard:vboard@localhost:5432/vboard"
+      DATABASE_URL: "postgresql://vboard_app:app-ci@localhost:5432/vboard"
+      AUTH_DATABASE_URL: "postgresql://vboard_auth:auth-ci@localhost:5432/vboard"
+      DIRECT_URL: "postgresql://vboard:vboard@localhost:5432/vboard"
+      VBOARD_APP_PASSWORD: "app-ci"
+      VBOARD_AUTH_PASSWORD: "auth-ci"
+      SUPER_ADMIN_EMAILS: "superadmin@vit.edu.in"
 
     steps:
       - uses: actions/checkout@v4
@@ -70,8 +76,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Build the schema the way a fresh install does
-        run: npx drizzle-kit push --force
+      - name: Provision restricted database principals
+        run: npm run db:provision
 
       - name: Apply migrations
         run: npm run db:migrate
@@ -81,3 +87,9 @@ jobs:
 
       - name: Every migration file is recorded as applied
         run: npx tsx scripts/check-migrations.ts
+
+      - name: Verify runtime privileges and database security
+        run: npm run db:verify
+
+      - name: Fresh and legacy migration and authorization tests
+        run: npm run test:db

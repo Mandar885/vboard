@@ -1,37 +1,20 @@
 "use server"
-
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { getCommunityById } from "@/db/queries/communities"
-import { getPostById, getSeatsTaken } from "@/db/queries/posts"
+import { withDb } from "@/db"
 import {
-  getRegistration,
-  setRegistrationStatus,
-  upsertRegistration,
+  registerForEvent,
+  cancelRegistration,
 } from "@/db/queries/registrations"
 import { done, fail, type ActionResult } from "@/lib/action-result"
-import {
-  initialStatus,
-  isActiveRegistration,
-  registrationAvailability,
-} from "@/lib/registration"
+import { attemptAction } from "@/lib/action-error"
 import { getSessionUser } from "@/lib/session"
-
-const input = z.object({ postId: z.uuid() })
-
-const UNAVAILABLE: Record<string, string> = {
-  not_event: "This post is not an event.",
-  unavailable: "This event is not open for registration.",
-  not_open: "Registration has not opened yet.",
-  closed: "Registration has closed.",
-  full: "This event is full.",
-}
-
-function revalidate(slug: string) {
-  revalidatePath(`/posts/${slug}`)
+const input = z.object({ postId: z.uuid() }).strict()
+function revalidate() {
+  revalidatePath("/posts", "layout")
   revalidatePath("/dashboard", "layout")
+  revalidatePath("/")
 }
-
 export async function registerAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -40,45 +23,19 @@ export async function registerAction(
   if (!user) return fail("Sign in to register.")
   const parsed = input.safeParse({ postId: formData.get("postId") })
   if (!parsed.success) return fail("Unknown event.")
-
-  const post = await getPostById(parsed.data.postId)
-  if (!post) return fail("Unknown event.")
-  const community = await getCommunityById(post.communityId)
-  if (!community?.isActive) return fail("This event is no longer available.")
-
-  const existing = await getRegistration(post.id, user.id)
-  if (existing && isActiveRegistration(existing.status))
-    return fail("You are already registered.")
-  if (existing?.status === "rejected")
-    return fail("The organisers declined your request for this event.")
-
-  const availability = registrationAvailability(
-    post,
-    await getSeatsTaken(post.id)
+  const result = await attemptAction(() =>
+    withDb({ userId: user.id }, async (ctx) => {
+      const registration = await registerForEvent(ctx, parsed.data.postId)
+      return done(
+        registration.status === "pending"
+          ? "Request sent. You will see the decision here."
+          : "You are registered."
+      )
+    })
   )
-  if (availability !== "open") return fail(UNAVAILABLE[availability])
-
-  const status = initialStatus(post)
-  await upsertRegistration({ postId: post.id, userId: user.id, status })
-
-  if (status === "approved" && post.capacity !== null) {
-    const taken = await getSeatsTaken(post.id)
-    if (taken > post.capacity) {
-      const mine = await getRegistration(post.id, user.id)
-      if (mine) await setRegistrationStatus([mine.id], "cancelled", null)
-      revalidate(post.slug)
-      return fail("The last seat was just taken.")
-    }
-  }
-
-  revalidate(post.slug)
-  return done(
-    status === "pending"
-      ? "Request sent. You will see the decision here."
-      : "You are registered."
-  )
+  if (result.ok) revalidate()
+  return result
 }
-
 export async function cancelRegistrationAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -87,14 +44,12 @@ export async function cancelRegistrationAction(
   if (!user) return fail("Sign in first.")
   const parsed = input.safeParse({ postId: formData.get("postId") })
   if (!parsed.success) return fail("Unknown event.")
-
-  const post = await getPostById(parsed.data.postId)
-  if (!post) return fail("Unknown event.")
-  const existing = await getRegistration(post.id, user.id)
-  if (!existing || !["pending", "approved"].includes(existing.status))
-    return fail("There is no registration to cancel.")
-
-  await setRegistrationStatus([existing.id], "cancelled", user.id)
-  revalidate(post.slug)
-  return done("Registration cancelled.")
+  const result = await attemptAction(() =>
+    withDb({ userId: user.id }, async (ctx) => {
+      await cancelRegistration(ctx, parsed.data.postId)
+      return done("Registration cancelled.")
+    })
+  )
+  if (result.ok) revalidate()
+  return result
 }

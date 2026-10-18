@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import { ActionForm } from "@/components/action-form"
 import { ConfirmSubmit } from "@/components/confirm-submit"
@@ -47,7 +48,9 @@ export default async function TeamPage({
 }) {
   const { slug } = await params
   const access = await requireCommunityAccess(slug, "member:read")
-  const members = await listMembers(access.community.id)
+  const members = await withDb({ userId: access.user.id }, async (ctx) =>
+    listMembers(ctx, access.community.id)
+  )
   const assignable = assignableCommunityRoles(access.user.siteRole, access.role)
   const canManage = access.can("member:manage")
   const actor = { siteRole: access.user.siteRole, communityRole: access.role }
@@ -177,7 +180,9 @@ export default async function TeamPage({
                     name="role"
                     label="Role"
                     defaultValue={
-                      assignable.includes("manager") ? "manager" : assignable[0]
+                      assignable.includes("organizer")
+                        ? "organizer"
+                        : assignable[0]
                     }
                     items={assignable.map((r) => ({
                       value: r,
@@ -186,8 +191,8 @@ export default async function TeamPage({
                   />
                   <FieldDescription>
                     {access.role === "lead"
-                      ? "Only vboard admins appoint leads."
-                      : "Admins can appoint leads."}
+                      ? "Only Super admin appoints Leads."
+                      : "Super admin can appoint Leads."}
                   </FieldDescription>
                 </Field>
                 <FormFooter>
@@ -200,7 +205,7 @@ export default async function TeamPage({
 
         <Panel title="What each role can do">
           <ul className="grid gap-4">
-            {(["lead", "manager", "volunteer"] as CommunityRole[]).map((r) => (
+            {(["lead", "organizer"] as CommunityRole[]).map((r) => (
               <li key={r} className="grid gap-1.5">
                 <RoleBadge role={r} />
                 <p className="text-muted-foreground text-sm">

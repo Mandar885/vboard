@@ -1,3 +1,5 @@
+import { withDb } from "@/db"
+import { getTrustedActor } from "@/lib/session"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -19,17 +21,23 @@ type Props = { params: Promise<{ slug: string }> }
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const community = await getActiveCommunityBySlug((await params).slug)
+  const community = await withDb(await getTrustedActor(), async (ctx) =>
+    getActiveCommunityBySlug(ctx, (await params).slug)
+  )
   return { title: community ? `${community.name} · vboard` : "vboard" }
 }
 
 export default async function CommunityPage({ params }: Props) {
-  const community = await getActiveCommunityBySlug((await params).slug)
+  const community = await withDb(await getTrustedActor(), async (ctx) =>
+    getActiveCommunityBySlug(ctx, (await params).slug)
+  )
   if (!community) notFound()
   const user = await getSessionUser()
   const [posts, all, access] = await Promise.all([
-    listFeed({ signedIn: !!user, communityId: community.id }),
-    listActiveCommunities(),
+    withDb(await getTrustedActor(), async (ctx) =>
+      listFeed(ctx, { communityId: community.id })
+    ),
+    withDb(await getTrustedActor(), async (ctx) => listActiveCommunities(ctx)),
     user ? getCommunityAccess(user, community.slug) : null,
   ])
   const events = posts.filter((post) => post.isEvent).length

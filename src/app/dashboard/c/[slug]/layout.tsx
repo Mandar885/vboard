@@ -39,7 +39,7 @@ export default async function CommunityLayout({
               {access.community.name}
             </h1>
             <div className="flex flex-wrap items-center gap-2">
-              <RoleBadge role={access.role ?? "admin"} />
+              <RoleBadge role={access.role ?? "super_admin"} />
               {!access.community.isActive && (
                 <Badge variant="destructive">Archived</Badge>
               )}

@@ -27,7 +27,7 @@ CLAUDE.md is symlinked to this file — same content applies to all coding agent
 - `npm test` — Vitest
 - `npm run dev:up` / `npm run dev:down` — local Postgres in Docker
 - `npm run db:generate` — generate a migration from schema changes
-- `npm run db:push` — apply schema directly (dev only)
+- Apply numbered SQL migrations locally too; schema push does not install the security model
 - `npm run db:migrate` — run pending SQL migrations (production)
 - `npm run dev:seed` — wipe and seed the local database with communities, events and one persona per role
 - `npx shadcn@latest add <component>` — install a shadcn component on demand
@@ -57,16 +57,16 @@ CLAUDE.md is symlinked to this file — same content applies to all coding agent
 
 - Sign-in is VOSS only. VOSS verifies the `@vit.edu.in` mailbox; vboard stores no passwords and re-checks the domain on user creation
 - Local dev uses the seeded persona switcher (`VBOARD_DEV_AUTH=1`); it bypasses authentication only, never authorization
-- Layers: visitor, student, community team (`lead` / `manager` / `volunteer` on `community_member.role`), site `admin` (`profile.site_role`), super admin (`SUPER_ADMIN_EMAILS`)
+- Four roles: Super admin (private SQL allowlist provisioned from `SUPER_ADMIN_EMAILS`), Lead, Organizer and Student; visitor is unauthenticated. Community roles are `lead` / `organizer`, scoped to active assignments in active communities. Lead inherits Organizer and delegates only Organizer.
 - Capabilities live in `src/lib/rbac.ts`; check them with `requireCommunityAccess` / `actionCommunityAccess` / `requireSiteCapability`, never by comparing role strings in pages
-- Every privileged write calls `createAuditLog`
+- Every domain mutation owns `createAuditLog(ctx, ...)` in its `withDb` transaction; actions never duplicate audit writes. Read `.Codex/rules/database-security.md` before database/auth changes.
 - Full matrix and roadmap: `research/rbac.md`
 
 ## Schema notes
 
 - `post` is unified: text announcements OR events (when `isEvent = true`, event fields populated)
 - `registration` only valid for posts where `isEvent = true`
-- All ID fields are UUID; rollNumber is text (trust-on-signup, no list validation in v1)
+- Owned domain IDs are UUID; Better Auth user IDs and their foreign keys remain text. rollNumber is text (trust-on-signup, no list validation in v1)
 - Better Auth manages `user` / `session` / `account` / `verification` tables; we own everything else
 
 ## When adding code

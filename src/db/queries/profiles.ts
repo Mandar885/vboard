@@ -1,104 +1,86 @@
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm"
-import { db } from "@/db"
-import { profile, user } from "@/db/schema"
+import { eq, sql } from "drizzle-orm"
+import type { DbContext } from "@/db"
+import { profile } from "@/db/schema"
+import { createAuditLog } from "@/db/queries/audit"
+import { projectionRows, requireActor } from "@/db/queries/projections"
 
-export async function ensureProfile(userId: string) {
-  await db.insert(profile).values({ userId }).onConflictDoNothing()
+export async function ensureProfile(ctx: DbContext) {
+  const userId = requireActor(ctx)
+  const rows = await ctx.tx
+    .insert(profile)
+    .values({ userId })
+    .onConflictDoNothing()
+    .returning()
+  if (rows.length)
+    await createAuditLog(ctx, {
+      action: "profile.created",
+      targetType: "profile",
+      targetId: userId,
+    })
 }
-
-export async function getProfile(userId: string) {
-  const row = await db.query.profile.findFirst({
-    where: eq(profile.userId, userId),
-  })
-  return row ?? null
+export async function getProfile(ctx: DbContext, userId: string) {
+  return (
+    (
+      await ctx.tx.select().from(profile).where(eq(profile.userId, userId))
+    )[0] ?? null
+  )
 }
-
 export async function updateProfile(
-  userId: string,
+  ctx: DbContext,
   data: {
     rollNumber: string | null
     department: string | null
     bio: string | null
   }
 ) {
-  await db
+  const userId = requireActor(ctx)
+  await ctx.tx
     .insert(profile)
     .values({ userId, ...data })
-    .onConflictDoUpdate({
-      target: profile.userId,
-      set: { ...data, updatedAt: new Date() },
-    })
-}
-
-export async function getUserByEmail(email: string) {
-  const row = await db.query.user.findFirst({
-    where: eq(sql`lower(${user.email})`, email.trim().toLowerCase()),
-    columns: { id: true, name: true, email: true },
+    .onConflictDoUpdate({ target: profile.userId, set: data })
+  await createAuditLog(ctx, {
+    action: "profile.updated",
+    targetType: "profile",
+    targetId: userId,
   })
-  return row ?? null
 }
-
-export async function setAdminDepartment(
-  userId: string,
-  adminDepartment: string | null
+export async function isSuperAdmin(ctx: DbContext) {
+  const result = await ctx.tx.execute<{ allowed: boolean }>(
+    sql`select vboard_api.is_super_admin() as allowed`
+  )
+  return result.rows[0]?.allowed ?? false
+}
+export async function getUserByEmail(
+  ctx: DbContext,
+  email: string,
+  communityId?: string
 ) {
-  await db
-    .insert(profile)
-    .values({ userId, adminDepartment })
-    .onConflictDoUpdate({
-      target: profile.userId,
-      set: { adminDepartment, updatedAt: new Date() },
-    })
-}
-
-export async function setSiteRole(
-  userId: string,
-  siteRole: "admin" | "student"
-) {
-  await db
-    .insert(profile)
-    .values({ userId, siteRole })
-    .onConflictDoUpdate({
-      target: profile.userId,
-      set: { siteRole, updatedAt: new Date() },
-    })
-}
-
-export async function listPeople(search: string, limit = 50) {
-  const term = search.trim()
-  const where = term
-    ? or(
-        ilike(user.name, `%${term}%`),
-        ilike(user.email, `%${term}%`),
-        ilike(profile.rollNumber, `%${term}%`)
+  return (
+    (
+      await projectionRows<{ id: string; name: string; email: string }>(
+        ctx,
+        sql`select data from vboard_api.person_by_email(${email}, ${communityId ?? null}::uuid) data`
       )
-    : undefined
-  return db
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt,
-      siteRole: profile.siteRole,
-      rollNumber: profile.rollNumber,
-      department: profile.department,
-    })
-    .from(user)
-    .leftJoin(profile, eq(profile.userId, user.id))
-    .where(where)
-    .orderBy(asc(user.name))
-    .limit(limit)
+    )[0] ?? null
+  )
 }
-
-export async function countUsers() {
-  const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(user)
-  return row?.n ?? 0
+export async function listPeople(ctx: DbContext, search: string, limit = 50) {
+  return projectionRows<{
+    id: string
+    name: string
+    email: string
+    createdAt: Date
+    siteRole: "super_admin" | "student"
+    rollNumber: string | null
+    department: string | null
+  }>(
+    ctx,
+    sql`select data from vboard_api.people(${search.trim()}, ${limit}) data`
+  )
 }
-
-export async function countAdmins() {
-  const [row] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(profile)
-    .where(and(eq(profile.siteRole, "admin")))
-  return row?.n ?? 0
+export async function countUsers(ctx: DbContext) {
+  const result = await ctx.tx.execute<{ data: { users: number } }>(
+    sql`select vboard_api.platform_counts() data`
+  )
+  return result.rows[0].data.users
 }

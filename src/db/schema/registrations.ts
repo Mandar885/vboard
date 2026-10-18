@@ -1,3 +1,4 @@
+import { domainPolicies } from "@/db/schema/rls"
 import {
   index,
   pgTable,
@@ -16,13 +17,13 @@ export const registration = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     postId: uuid("post_id")
       .notNull()
-      .references(() => post.id, { onDelete: "cascade" }),
+      .references(() => post.id, { onDelete: "restrict" }),
     userId: text("user_id")
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "restrict" }),
     status: registrationStatusEnum("status").notNull().default("pending"),
     decidedBy: text("decided_by").references(() => user.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
@@ -34,7 +35,8 @@ export const registration = pgTable(
       .defaultNow(),
   },
   (t) => [
+    ...domainPolicies("registration"),
     uniqueIndex("registration_unique").on(t.postId, t.userId),
     index("registration_user_idx").on(t.userId),
   ]
-)
+).enableRLS()

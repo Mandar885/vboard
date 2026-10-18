@@ -266,7 +266,7 @@ export function CommunityList({
                 </Link>
               )}
               {(membership.role === "lead" ||
-                membership.role === "manager") && (
+                membership.role === "organizer") && (
                 <Link
                   href={`/dashboard/c/${membership.slug}/posts/new`}
                   className={buttonVariants({ variant: "ghost", size: "sm" })}

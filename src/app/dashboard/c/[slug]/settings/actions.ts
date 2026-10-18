@@ -1,12 +1,11 @@
 "use server"
-
 import { revalidatePath } from "next/cache"
-import { createAuditLog } from "@/db/queries/audit"
+import { withDb } from "@/db"
 import { updateCommunity } from "@/db/queries/communities"
-import { communityFormSchema, firstIssue } from "@/db/validations"
+import { firstIssue, communityFormSchema } from "@/db/validations"
 import { done, fail, type ActionResult } from "@/lib/action-result"
+import { attemptAction } from "@/lib/action-error"
 import { actionCommunityAccess } from "@/lib/session"
-
 export async function updateCommunityAction(
   _prev: ActionResult | null,
   formData: FormData
@@ -22,18 +21,16 @@ export async function updateCommunityAction(
     logoUrl: formData.get("logoUrl") ?? "",
   })
   if (!parsed.success) return fail(firstIssue(parsed.error))
-
-  await updateCommunity(access.community.id, parsed.data)
-  await createAuditLog({
-    actorId: access.user.id,
-    action: "community.updated",
-    targetType: "community",
-    targetId: access.community.id,
-    communityId: access.community.id,
-    details: { name: parsed.data.name },
-  })
-  revalidatePath(`/dashboard/c/${access.community.slug}`, "layout")
-  revalidatePath(`/communities/${access.community.slug}`)
-  revalidatePath("/communities")
-  return done("Community updated.")
+  const result = await attemptAction(() =>
+    withDb({ userId: access.user.id }, async (ctx) => {
+      await updateCommunity(ctx, access.community.id, parsed.data)
+      return done("Community updated.")
+    })
+  )
+  if (result.ok) {
+    revalidatePath(`/dashboard/c/${access.community.slug}`, "layout")
+    revalidatePath(`/communities/${access.community.slug}`)
+    revalidatePath("/communities")
+  }
+  return result
 }

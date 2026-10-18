@@ -1,3 +1,5 @@
+import { withDb } from "@/db"
+import { getTrustedActor } from "@/lib/session"
 import Link from "next/link"
 import { ArrowRight, CalendarDays, Compass } from "lucide-react"
 import { EmptyState } from "@/components/empty-state"
@@ -14,8 +16,8 @@ export const dynamic = "force-dynamic"
 export default async function HomePage() {
   const user = await getSessionUser()
   const [posts, communities] = await Promise.all([
-    listFeed({ signedIn: !!user }),
-    listActiveCommunities(),
+    withDb(await getTrustedActor(), async (ctx) => listFeed(ctx, {})),
+    withDb(await getTrustedActor(), async (ctx) => listActiveCommunities(ctx)),
   ])
 
   return (

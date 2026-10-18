@@ -1,3 +1,4 @@
+import { domainPolicies } from "@/db/schema/rls"
 import {
   boolean,
   index,
@@ -8,30 +9,30 @@ import {
   uuid,
 } from "drizzle-orm/pg-core"
 import { user } from "./auth"
-import { communityApprovalEnum, communityRoleEnum } from "./enums"
+import { communityRoleEnum } from "./enums"
 
-export const community = pgTable("community", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  description: text("description").notNull().default(""),
-  logoUrl: text("logo_url"),
-  coverImageUrl: text("cover_image_url"),
-  department: text("department"),
-  approvalStatus: communityApprovalEnum("approval_status")
-    .notNull()
-    .default("approved"),
-  isActive: boolean("is_active").notNull().default(true),
-  createdBy: text("created_by").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-})
+export const community = pgTable(
+  "community",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    logoUrl: text("logo_url"),
+    coverImageUrl: text("cover_image_url"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  () => domainPolicies("community")
+).enableRLS()
 
 export const communityMember = pgTable(
   "community_member",
@@ -39,14 +40,14 @@ export const communityMember = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     communityId: uuid("community_id")
       .notNull()
-      .references(() => community.id, { onDelete: "cascade" }),
+      .references(() => community.id, { onDelete: "restrict" }),
     userId: text("user_id")
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    role: communityRoleEnum("role").notNull().default("volunteer"),
+      .references(() => user.id, { onDelete: "restrict" }),
+    role: communityRoleEnum("role").notNull().default("organizer"),
     isActive: boolean("is_active").notNull().default(true),
     addedBy: text("added_by").references(() => user.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     joinedAt: timestamp("joined_at", { withTimezone: true })
       .notNull()
@@ -56,7 +57,8 @@ export const communityMember = pgTable(
       .defaultNow(),
   },
   (t) => [
+    ...domainPolicies("member"),
     uniqueIndex("community_member_unique").on(t.communityId, t.userId),
     index("community_member_user_idx").on(t.userId),
   ]
-)
+).enableRLS()

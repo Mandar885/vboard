@@ -1,20 +1,6 @@
 import { pgEnum } from "drizzle-orm/pg-core"
 
-export const siteRoleEnum = pgEnum("site_role", ["admin", "student"])
-
-export const communityRoleEnum = pgEnum("community_role", [
-  "lead",
-  "manager",
-  "volunteer",
-  "advisor",
-])
-
-export const communityApprovalEnum = pgEnum("community_approval", [
-  "pending",
-  "approved",
-])
-
-export const overrideEffectEnum = pgEnum("override_effect", ["grant", "revoke"])
+export const communityRoleEnum = pgEnum("community_role", ["lead", "organizer"])
 
 export const postVisibilityEnum = pgEnum("post_visibility", [
   "public",

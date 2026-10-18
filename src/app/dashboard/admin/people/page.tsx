@@ -1,6 +1,6 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import { SearchIcon } from "lucide-react"
-import { AutoSubmitSelect } from "@/components/dashboard/role-select"
 import { EmptyState, PageHeader, Panel } from "@/components/dashboard/ui"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,15 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { listPeople } from "@/db/queries/profiles"
-import { parseEmailList } from "@/lib/identity"
-import {
-  canSetSiteRole,
-  SITE_ROLE_LABEL,
-  siteCan,
-  type SiteRole,
-} from "@/lib/rbac"
+import { SITE_ROLE_LABEL } from "@/lib/rbac"
 import { requireSiteCapability } from "@/lib/session"
-import { setSiteRoleAction } from "@/app/dashboard/admin/actions"
 
 export default async function PeoplePage({
   searchParams,
@@ -30,19 +23,15 @@ export default async function PeoplePage({
 }) {
   const user = await requireSiteCapability("user:read")
   const { q = "" } = await searchParams
-  const people = await listPeople(q)
-  const superAdmins = parseEmailList(process.env.SUPER_ADMIN_EMAILS)
-  const canManageAdmins = siteCan(user.siteRole, "admin:manage")
+  const people = await withDb({ userId: user.id }, async (ctx) =>
+    listPeople(ctx, q)
+  )
 
   return (
     <>
       <PageHeader
         title="People"
-        description={
-          canManageAdmins
-            ? "Everyone who has signed in. Promote a student to admin or step an admin back down."
-            : "Everyone who has signed in. Only the super admin can change site roles."
-        }
+        description="Everyone who has signed in. Community roles are managed from each community team."
       />
       <Panel
         title={q ? `Results for "${q}"` : "Everyone"}
@@ -89,19 +78,6 @@ export default async function PeoplePage({
             </TableHeader>
             <TableBody>
               {people.map((p) => {
-                const current: SiteRole = superAdmins.includes(
-                  p.email.toLowerCase()
-                )
-                  ? "super_admin"
-                  : (p.siteRole ?? "student")
-                const next: SiteRole = current === "admin" ? "student" : "admin"
-                const editable =
-                  canManageAdmins &&
-                  canSetSiteRole(user.siteRole, {
-                    current,
-                    next,
-                    isSelf: p.id === user.id,
-                  })
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="pl-6">
@@ -117,27 +93,13 @@ export default async function PeoplePage({
                       {p.department ?? "—"}
                     </TableCell>
                     <TableCell data-label="Site role" className="pr-6">
-                      {editable ? (
-                        <AutoSubmitSelect
-                          action={setSiteRoleAction}
-                          hidden={{ userId: p.id }}
-                          name="siteRole"
-                          label={`Site role for ${p.name}`}
-                          current={current}
-                          options={[
-                            { value: "student", label: "Student" },
-                            { value: "admin", label: "Admin" },
-                          ]}
-                        />
-                      ) : (
-                        <Badge
-                          variant={
-                            current === "student" ? "secondary" : "default"
-                          }
-                        >
-                          {SITE_ROLE_LABEL[current]}
-                        </Badge>
-                      )}
+                      <Badge
+                        variant={
+                          p.siteRole === "super_admin" ? "default" : "secondary"
+                        }
+                      >
+                        {SITE_ROLE_LABEL[p.siteRole]}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 )

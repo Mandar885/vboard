@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { EventFilters } from "@/components/dashboard/event-filters"
@@ -68,16 +69,16 @@ export default async function EventsPage({
   const canSeePrivate = seeAll || readableCommunityIds.length > 0
 
   const [events, communities] = await Promise.all([
-    listDashboardEvents({
-      seeAll,
-      readableCommunityIds,
-      q,
-      communitySlug,
-      when,
-      status,
-      now: new Date(),
-    }),
-    listActiveCommunities(),
+    withDb({ userId: user.id }, async (ctx) =>
+      listDashboardEvents(ctx, {
+        q,
+        communitySlug,
+        when,
+        status,
+        now: new Date(),
+      })
+    ),
+    withDb({ userId: user.id }, async (ctx) => listActiveCommunities(ctx)),
   ])
 
   const statuses = [

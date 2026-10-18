@@ -248,7 +248,7 @@ export function PostForm({
                       Approve each registration
                     </FieldLabel>
                     <FieldDescription>
-                      Requests wait until a manager approves them.
+                      Requests wait until an Organizer approves them.
                     </FieldDescription>
                   </FieldContent>
                   <Switch

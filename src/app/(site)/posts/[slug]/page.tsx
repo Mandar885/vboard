@@ -1,3 +1,5 @@
+import { withDb } from "@/db"
+import { getTrustedActor } from "@/lib/session"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -23,12 +25,16 @@ type Props = { params: Promise<{ slug: string }> }
 export const dynamic = "force-dynamic"
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = await getPostDetailBySlug((await params).slug)
+  const post = await withDb(await getTrustedActor(), async (ctx) =>
+    getPostDetailBySlug(ctx, (await params).slug)
+  )
   return { title: post ? `${post.title} · vboard` : "vboard" }
 }
 
 export default async function PostPage({ params }: Props) {
-  const post = await getPostDetailBySlug((await params).slug)
+  const post = await withDb(await getTrustedActor(), async (ctx) =>
+    getPostDetailBySlug(ctx, (await params).slug)
+  )
   if (!post) notFound()
   const user = await getSessionUser()
   const role = user ? roleIn(user, post.communityId) : null
@@ -36,7 +42,11 @@ export default async function PostPage({ params }: Props) {
   if (post.status !== "published" && !canManage) notFound()
   if (post.visibility === "vit_only" && !user)
     return <SignInWall slug={post.slug} title={post.title} />
-  const registration = user ? await getRegistration(post.id, user.id) : null
+  const registration = user
+    ? await withDb(await getTrustedActor(), async (ctx) =>
+        getRegistration(ctx, post.id, user.id)
+      )
+    : null
   const status = registration?.status ?? null
   const showLocation = canSeeLocation(post, { status, canManage })
 

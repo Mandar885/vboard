@@ -1,3 +1,5 @@
+import { z } from "zod"
+import { withDb } from "@/db"
 import { WorkspaceRouteTitle } from "@/components/dashboard/route-context"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -41,12 +43,19 @@ export default async function ManagePostPage({
   const { slug, postId } = await params
   const { status: initialFilter } = await searchParams
   const access = await requireCommunityAccess(slug)
-  const post = /^[0-9a-f-]{36}$/.test(postId) ? await getPostById(postId) : null
+  const id = z.uuid().safeParse(postId)
+  const post = id.success
+    ? await withDb({ userId: access.user.id }, async (ctx) =>
+        getPostById(ctx, id.data)
+      )
+    : null
   if (!post || post.communityId !== access.community.id) notFound()
 
   const registrations =
     post.isEvent && access.can("registration:read")
-      ? await listRegistrations(post.id)
+      ? await withDb({ userId: access.user.id }, async (ctx) =>
+          listRegistrations(ctx, post.id)
+        )
       : []
   const count = (s: string) =>
     registrations.filter((r) => r.status === s).length
@@ -167,7 +176,7 @@ export default async function ManagePostPage({
               <ConfirmSubmit
                 label="Delete"
                 title="Delete this post?"
-                description="The post and all of its registrations are removed. This cannot be undone."
+                description="This post leaves discovery. Existing registrations remain in history."
                 confirmLabel="Delete post"
               />
             </ActionForm>

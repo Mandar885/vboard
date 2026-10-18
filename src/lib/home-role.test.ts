@@ -1,35 +1,25 @@
 import { describe, expect, it } from "vitest"
 import { homeRole } from "@/lib/home-role"
-
-describe("homeRole", () => {
-  it("gives a person with no team the student view", () => {
+describe("homeRole presentation", () => {
+  it("defaults an unassigned account to Student", () => {
     expect(homeRole({ siteRole: "student", memberships: [] })).toBe("student")
   })
-
-  it("uses the highest community role when someone belongs to more than one", () => {
+  it("selects Lead over Organizer without altering assignments", () => {
     expect(
       homeRole({
         siteRole: "student",
-        memberships: [{ role: "volunteer" }, { role: "lead" }],
+        memberships: [{ role: "organizer" }, { role: "lead" }],
       })
     ).toBe("lead")
-    expect(
-      homeRole({
-        siteRole: "student",
-        memberships: [{ role: "advisor" }, { role: "manager" }],
-      })
-    ).toBe("manager")
   })
-
-  it("lets a site role replace the community role", () => {
+  it("selects Organizer for an Organizer assignment", () => {
     expect(
-      homeRole({
-        siteRole: "admin",
-        memberships: [{ role: "lead" }],
-      })
-    ).toBe("admin")
-    expect(homeRole({ siteRole: "super_admin", memberships: [] })).toBe(
-      "super_admin"
-    )
+      homeRole({ siteRole: "student", memberships: [{ role: "organizer" }] })
+    ).toBe("organizer")
+  })
+  it("selects Super admin before committee presentation", () => {
+    expect(
+      homeRole({ siteRole: "super_admin", memberships: [{ role: "lead" }] })
+    ).toBe("super_admin")
   })
 })

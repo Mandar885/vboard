@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { z } from "zod"
@@ -31,7 +32,9 @@ export default async function MyRegistrationsPage({
   searchParams: Promise<{ q?: string; status?: string }>
 }) {
   const user = await requireUser()
-  const registrations = await listUserRegistrations(user.id)
+  const registrations = await withDb({ userId: user.id }, async (ctx) =>
+    listUserRegistrations(ctx, user.id)
+  )
   const { q, status } = z
     .object({
       q: z.string().max(200).catch(""),

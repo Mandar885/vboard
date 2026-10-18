@@ -46,91 +46,6 @@ export function StudentHome({ events }: { name: string; events: MyEvent[] }) {
   )
 }
 
-export function VolunteerHome({
-  memberships,
-  events,
-  mine,
-}: {
-  name: string
-  memberships: Membership[]
-  events: UpcomingEvent[]
-  mine: MyEvent[]
-}) {
-  return (
-    <>
-      <PageHeader
-        title="Event operations"
-        description="Check people in from an event, and see who has registered."
-      />
-      <SectionCards>
-        <StatCard label="Communities" value={memberships.length} />
-        <StatCard
-          label="Coming up"
-          value={`${events.length}${events.length === 10 ? "+" : ""}`}
-          hint="Events you staff"
-        />
-        <StatCard
-          label="Your seats"
-          value={mine.length}
-          hint="Events you joined"
-        />
-      </SectionCards>
-      <div className="grid gap-4 xl:grid-cols-5">
-        <div className="xl:col-span-3">
-          <TeamEvents
-            events={events}
-            title="Events to staff"
-            description="Open an event to check people in."
-            empty="Nothing coming up in your communities."
-          />
-        </div>
-        <div className="xl:col-span-2">
-          <CommunityList memberships={memberships} />
-        </div>
-      </div>
-      <MyEvents events={mine} />
-    </>
-  )
-}
-
-export function AdvisorHome({
-  memberships,
-  events,
-}: {
-  name: string
-  memberships: Membership[]
-  events: UpcomingEvent[]
-}) {
-  return (
-    <>
-      <PageHeader
-        title="Community overview"
-        description="The communities you advise, and the events they have coming up."
-      />
-      <SectionCards>
-        <StatCard label="Communities" value={memberships.length} />
-        <StatCard
-          label="Coming up"
-          value={`${events.length}${events.length === 10 ? "+" : ""}`}
-        />
-      </SectionCards>
-      <div className="grid gap-4 xl:grid-cols-5">
-        <div className="xl:col-span-3">
-          <TeamEvents
-            events={events}
-            title="Events in your communities"
-            description="Open one to read registrations."
-            empty="Nothing coming up."
-          />
-        </div>
-        <div className="xl:col-span-2">
-          <CommunityList memberships={memberships} />
-        </div>
-      </div>
-    </>
-  )
-}
-
 export function OrganizerHome({
   lead,
   memberships,
@@ -188,7 +103,6 @@ export function OrganizerHome({
 }
 
 export function AdminHome({
-  superAdmin,
   communities,
   users,
   posts,
@@ -197,7 +111,6 @@ export function AdminHome({
   events,
 }: {
   name: string
-  superAdmin: boolean
   communities: number
   users: number
   posts: number
@@ -209,11 +122,7 @@ export function AdminHome({
     <>
       <PageHeader
         title="Campus overview"
-        description={
-          superAdmin
-            ? "Every community, and the requests waiting on a decision. You appoint site admins from People."
-            : "Every community, and the requests waiting on a decision."
-        }
+        description="Every community and the requests waiting on a decision. Assign Leads from each community team."
         actions={
           <Link
             href="/dashboard/admin/communities"

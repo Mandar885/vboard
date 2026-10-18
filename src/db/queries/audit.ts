@@ -1,32 +1,30 @@
-import { desc, eq } from "drizzle-orm"
-import { db } from "@/db"
-import { auditLog, user } from "@/db/schema"
+import { sql } from "drizzle-orm"
+import type { DbContext } from "@/db"
+import { auditLog } from "@/db/schema"
+import { projectionRows, requireActor } from "@/db/queries/projections"
 
-export async function createAuditLog(entry: {
-  actorId: string
-  action: string
-  targetType: string
-  targetId?: string | null
-  communityId?: string | null
-  details?: Record<string, unknown>
-}) {
-  await db.insert(auditLog).values(entry)
+export async function createAuditLog(
+  ctx: DbContext,
+  entry: {
+    action: string
+    targetType: string
+    targetId?: string | null
+    communityId?: string | null
+    details?: Record<string, unknown>
+  }
+) {
+  await ctx.tx.insert(auditLog).values({ ...entry, actorId: requireActor(ctx) })
 }
 
-export async function listAuditLog(limit = 100) {
-  return db
-    .select({
-      id: auditLog.id,
-      action: auditLog.action,
-      targetType: auditLog.targetType,
-      targetId: auditLog.targetId,
-      details: auditLog.details,
-      createdAt: auditLog.createdAt,
-      actorName: user.name,
-      actorEmail: user.email,
-    })
-    .from(auditLog)
-    .leftJoin(user, eq(user.id, auditLog.actorId))
-    .orderBy(desc(auditLog.createdAt))
-    .limit(limit)
+export async function listAuditLog(ctx: DbContext, limit = 100) {
+  return projectionRows<{
+    id: string
+    action: string
+    targetType: string
+    targetId: string | null
+    details: Record<string, unknown> | null
+    createdAt: Date
+    actorName: string | null
+    actorEmail: string | null
+  }>(ctx, sql`select data from vboard_api.audit_entries(${limit}) data`)
 }

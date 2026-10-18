@@ -1,3 +1,5 @@
+import { z } from "zod"
+import { withDb } from "@/db"
 import { WorkspaceRouteTitle } from "@/components/dashboard/route-context"
 import { notFound } from "next/navigation"
 import { PostForm } from "@/components/dashboard/post-form"
@@ -13,7 +15,12 @@ export default async function EditPostPage({
 }) {
   const { slug, postId } = await params
   const access = await requireCommunityAccess(slug, "post:write")
-  const post = /^[0-9a-f-]{36}$/.test(postId) ? await getPostById(postId) : null
+  const id = z.uuid().safeParse(postId)
+  const post = id.success
+    ? await withDb({ userId: access.user.id }, async (ctx) =>
+        getPostById(ctx, id.data)
+      )
+    : null
   if (!post || post.communityId !== access.community.id) notFound()
 
   return (

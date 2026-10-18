@@ -1,3 +1,4 @@
+import { withDb } from "@/db"
 import { RecordTable } from "@/components/dashboard/record-table"
 import Link from "next/link"
 import { ActionForm } from "@/components/action-form"
@@ -34,8 +35,10 @@ import {
 } from "@/app/dashboard/admin/actions"
 
 export default async function AdminCommunitiesPage() {
-  await requireSiteCapability("community:create")
-  const communities = await listAllCommunities()
+  const user = await requireSiteCapability("community:create")
+  const communities = await withDb({ userId: user.id }, async (ctx) =>
+    listAllCommunities(ctx)
+  )
 
   return (
     <>

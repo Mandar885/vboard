@@ -1,5 +1,8 @@
+import { sql } from "drizzle-orm"
+import { domainPolicies } from "@/db/schema/rls"
 import {
   boolean,
+  check,
   index,
   integer,
   pgTable,
@@ -22,9 +25,9 @@ export const post = pgTable(
     slug: text("slug").notNull().unique(),
     communityId: uuid("community_id")
       .notNull()
-      .references(() => community.id, { onDelete: "cascade" }),
+      .references(() => community.id, { onDelete: "restrict" }),
     authorId: text("author_id").references(() => user.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     title: text("title").notNull(),
     body: text("body").notNull(),
@@ -45,10 +48,7 @@ export const post = pgTable(
     }),
     capacity: integer("capacity"),
     requiresApproval: boolean("requires_approval").notNull().default(false),
-    advisorApprovedAt: timestamp("advisor_approved_at", { withTimezone: true }),
-    advisorApprovedBy: text("advisor_approved_by").references(() => user.id, {
-      onDelete: "set null",
-    }),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -57,8 +57,18 @@ export const post = pgTable(
       .defaultNow(),
   },
   (t) => [
+    ...domainPolicies("post"),
+    check(
+      "post_event_shape",
+      sql`(is_event AND starts_at IS NOT NULL AND location_visibility IS NOT NULL) OR (NOT is_event AND starts_at IS NULL AND ends_at IS NULL AND location IS NULL AND location_visibility IS NULL AND registration_opens_at IS NULL AND registration_closes_at IS NULL AND capacity IS NULL AND NOT requires_approval)`
+    ),
+    check("post_capacity_positive", sql`capacity IS NULL OR capacity > 0`),
+    check(
+      "post_dates_order",
+      sql`(ends_at IS NULL OR ends_at >= starts_at) AND (registration_opens_at IS NULL OR registration_closes_at IS NULL OR registration_closes_at >= registration_opens_at)`
+    ),
     index("post_community_idx").on(t.communityId),
     index("post_status_idx").on(t.status),
     index("post_starts_at_idx").on(t.startsAt),
   ]
-)
+).enableRLS()

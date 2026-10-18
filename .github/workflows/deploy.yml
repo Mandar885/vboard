@@ -13,6 +13,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production-database
+    env:
+      DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
+      DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+      AUTH_DATABASE_URL: ${{ secrets.PRODUCTION_AUTH_DATABASE_URL }}
+      VBOARD_APP_PASSWORD: ${{ secrets.PRODUCTION_APP_PASSWORD }}
+      VBOARD_AUTH_PASSWORD: ${{ secrets.PRODUCTION_AUTH_PASSWORD }}
+      SUPER_ADMIN_EMAILS: ${{ secrets.PRODUCTION_SUPER_ADMIN_EMAILS }}
 
     steps:
       - uses: actions/checkout@v4
@@ -25,19 +32,21 @@ jobs:
       - name: Check what this run is allowed to do
         id: secrets
         env:
-          DB: ${{ secrets.PRODUCTION_DATABASE_URL }}
           HOOK: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          if [ -z "$DB" ] || [ -z "$HOOK" ]; then
+          missing=0
+          for name in DIRECT_URL DATABASE_URL AUTH_DATABASE_URL VBOARD_APP_PASSWORD VBOARD_AUTH_PASSWORD SUPER_ADMIN_EMAILS HOOK; do
+            if [ -z "${!name}" ]; then
+              echo "Required production configuration is missing: $name" >> "$GITHUB_STEP_SUMMARY"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             {
               echo "### Deploy pipeline is not configured yet"
               echo
-              [ -z "$DB" ] && echo "- \`PRODUCTION_DATABASE_URL\` is missing"
-              [ -z "$HOOK" ] && echo "- \`VERCEL_DEPLOY_HOOK_URL\` is missing"
-              echo
-              echo "Add them to the \`production-database\` environment."
-              echo "Until then Vercel keeps deploying on push and this run does nothing."
+              echo "Configure the production-database environment before releasing."
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
@@ -46,24 +55,27 @@ jobs:
       - run: npm ci
         if: steps.secrets.outputs.ready == 'true'
 
+      - name: Provision restricted database principals
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run db:provision
+
       - name: Apply migrations
         if: steps.secrets.outputs.ready == 'true'
         run: npm run db:migrate
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
 
       - name: Confirm the schema matches the repo
         if: steps.secrets.outputs.ready == 'true'
         run: npx tsx scripts/check-migrations.ts
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+      - name: Verify runtime privileges and database security
+        if: steps.secrets.outputs.ready == 'true'
+        run: npm run db:verify
 
       - name: Deploy
         if: steps.secrets.outputs.ready == 'true'
         run: |
           code=$(curl -sS -X POST -o response.json -w '%{http_code}' \
             "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}")
-          cat response.json
           if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
             echo "Deploy hook returned $code" >&2
             exit 1

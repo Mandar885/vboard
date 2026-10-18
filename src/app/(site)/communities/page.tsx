@@ -1,3 +1,5 @@
+import { withDb } from "@/db"
+import { getTrustedActor } from "@/lib/session"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, Users } from "lucide-react"
@@ -10,7 +12,9 @@ export const metadata: Metadata = { title: "Communities · vboard" }
 export const dynamic = "force-dynamic"
 
 export default async function CommunitiesPage() {
-  const communities = await listActiveCommunities()
+  const communities = await withDb(await getTrustedActor(), async (ctx) =>
+    listActiveCommunities(ctx)
+  )
   return (
     <div className="space-y-8">
       <PageHeader

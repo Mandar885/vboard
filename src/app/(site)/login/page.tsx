@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { devAuthProps } from "@/lib/dev-auth"
 import { signInAsPersona } from "@/lib/dev-auth-actions"
 import { getSessionUser } from "@/lib/session"
+import { vossProvider } from "@/lib/auth-config"
+import { safeReturnPath } from "@/lib/auth-redirect"
 
 export const metadata: Metadata = { title: "Sign in · vboard" }
 export const dynamic = "force-dynamic"
@@ -20,19 +22,13 @@ const ERRORS: Record<string, string> = {
     "vboard is for VIT accounts. Sign in with your @vit.edu.in VOSS account.",
 }
 
-function safeNext(value: string | undefined) {
-  return value && value.startsWith("/") && !value.startsWith("//")
-    ? value
-    : "/dashboard"
-}
-
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string; error?: string }>
 }) {
   const params = await searchParams
-  const next = safeNext(params.next)
+  const next = safeReturnPath(params.next)
   if (await getSessionUser()) redirect(next)
   const devAuth = await devAuthProps()
   const error = params.error
@@ -104,7 +100,7 @@ export default async function LoginPage({
                 {error}
               </p>
             )}
-            <VossSignIn next={next} />
+            <VossSignIn next={next} available={vossProvider() !== null} />
             <p className="text-muted-foreground border-t pt-4 text-xs leading-relaxed">
               New to VOSS? Your account is created the first time you sign in.
               Your VIT email is verified at accounts.vosslabs.org.
@@ -131,7 +127,7 @@ export default async function LoginPage({
                     name="persona"
                     value={persona.key}
                     variant="outline"
-                    className="h-auto min-h-11 w-full justify-between gap-3 py-3 text-left whitespace-normal"
+                    className="h-auto min-h-11 w-full justify-between gap-3 py-3 text-left whitespace-normal md:h-auto"
                   >
                     <span className="grid min-w-0 gap-1">
                       <span className="text-sm font-medium">

@@ -11,7 +11,7 @@ Things intentionally out of v1. Don't add until the trigger condition is met.
 
 ## Features
 
-- **Custom registration form fields** — community managers attach event-specific questions to the registration form. Fully replaces Google Forms. v2 priority.
+- **Custom registration form fields** — community Organizers attach event-specific questions to the registration form. Fully replaces Google Forms. v2 priority.
 - Roll number CSV validation — admin uploads the official VIT student list, signups must match a row. Add when fake-account spam becomes a real problem.
 - Push / email notifications on event reminders, approval decisions.
 - Inter-college / alumni `guest` role — opens vboard to non-`@vit.edu.in` users for open events.
@@ -24,4 +24,4 @@ Things intentionally out of v1. Don't add until the trigger condition is met.
 
 ## RBAC
 
-See `research/rbac.md` for the ordered list: per-event co-hosts, faculty advisor, community approval workflow, capability overrides, department-scoped admins, pending invites, audience targeting, session review.
+Deferred permission extensions require a new product decision. The current four-role model is documented in `research/rbac.md`.

@@ -1,0 +1,17 @@
+--- a/clients.config.ts
++++ b/clients.config.ts
+@@ -47,4 +47,14 @@
+     scopes: ["openid", "profile", "email"],
+     firstParty: true,
+   },
++  {
++    name: "vboard",
++    description: "Campus events and community for VIT.",
++    redirectUris: [
++      "https://vboard.vosslabs.org/api/auth/oauth2/callback/voss",
++      "http://localhost:3000/api/auth/oauth2/callback/voss",
++    ],
++    scopes: ["openid", "profile", "email"],
++    firstParty: true,
++  },
+ ];
