@@ -10,6 +10,7 @@ if (process.env.NODE_ENV === "production" && process.env.VBOARD_DEV_AUTH) {
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pg"],
+  experimental: { serverActions: { bodySizeLimit: "3mb" } },
 
   async headers() {
     return [

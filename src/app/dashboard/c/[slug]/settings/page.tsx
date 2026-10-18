@@ -1,4 +1,5 @@
 import { ActionForm } from "@/components/action-form"
+import { CommunityLogo } from "@/components/community-logo"
 import { FormFooter, Panel } from "@/components/dashboard/ui"
 import { SubmitButton } from "@/components/submit-button"
 import {
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
+import { isStoredCommunityLogo } from "@/lib/community-logo"
 import { requireCommunityAccess } from "@/lib/session"
 import { updateCommunityAction } from "@/app/dashboard/c/[slug]/settings/actions"
 
@@ -53,18 +56,43 @@ export default async function CommunitySettingsPage({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="logoUrl">Logo URL</FieldLabel>
+            <FieldLabel htmlFor="logoFile">Community logo</FieldLabel>
+            <CommunityLogo name={community.name} logoUrl={community.logoUrl} />
+            <Input
+              id="logoFile"
+              name="logoFile"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              aria-describedby="logoFile-help"
+            />
+            <FieldDescription id="logoFile-help">
+              PNG, JPEG or WebP, up to 2 MiB. Uploading replaces the current
+              logo.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="logoUrl">Or use an image URL</FieldLabel>
             <Input
               id="logoUrl"
               name="logoUrl"
               type="url"
-              defaultValue={community.logoUrl ?? ""}
+              defaultValue={
+                isStoredCommunityLogo(community.logoUrl)
+                  ? ""
+                  : (community.logoUrl ?? "")
+              }
               placeholder="https://"
             />
             <FieldDescription>
               Use a publicly accessible image URL.
             </FieldDescription>
           </Field>
+          {community.logoUrl && (
+            <Field orientation="horizontal">
+              <FieldLabel htmlFor="removeLogo">Remove logo</FieldLabel>
+              <Switch id="removeLogo" name="removeLogo" />
+            </Field>
+          )}
           <Field>
             <FieldLabel htmlFor="address">Address</FieldLabel>
             <Input

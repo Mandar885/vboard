@@ -4,6 +4,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, Users } from "lucide-react"
 import { EmptyState } from "@/components/empty-state"
+import { CommunityLogo } from "@/components/community-logo"
 import { PageHeader } from "@/components/page-header"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { listActiveCommunities } from "@/db/queries/communities"
@@ -44,12 +45,11 @@ export default async function CommunitiesPage() {
                 <Card className="group-hover:ring-foreground/25 h-full gap-0 transition-shadow">
                   <CardContent className="flex-1">
                     <div className="flex items-start justify-between gap-4">
-                      <span
-                        className="bg-muted flex size-11 items-center justify-center rounded-lg text-lg font-semibold"
-                        aria-hidden
-                      >
-                        {community.name.charAt(0)}
-                      </span>
+                      <CommunityLogo
+                        name={community.name}
+                        logoUrl={community.logoUrl}
+                        className="size-11"
+                      />
                       <ArrowRight
                         className="text-muted-foreground mt-1 size-4"
                         aria-hidden

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, MessageSquare } from "lucide-react"
 import { EmptyState } from "@/components/empty-state"
+import { CommunityLogo } from "@/components/community-logo"
 import { PageHeader } from "@/components/page-header"
 import { PostCard } from "@/components/post-card"
 import { buttonVariants } from "@/components/ui/button-variants"
@@ -53,12 +54,7 @@ export default async function CommunityPage({ params }: Props) {
         All communities
       </Link>
       <div className="flex items-start gap-4 border-b pb-7">
-        <div
-          className="bg-muted flex size-14 shrink-0 items-center justify-center rounded-xl text-xl font-semibold"
-          aria-hidden
-        >
-          {community.name.charAt(0)}
-        </div>
+        <CommunityLogo name={community.name} logoUrl={community.logoUrl} />
         <PageHeader
           title={community.name}
           description={community.description ?? undefined}

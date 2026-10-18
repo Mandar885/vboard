@@ -75,6 +75,7 @@ scripts/          operational scripts
 - [research/future.md](./research/future.md) — deferred work
 - [research/rbac.md](./research/rbac.md) — the four-role authorization contract
 - [docs/voss-auth.md](./docs/voss-auth.md) — VOSS sign-in and client registration
+- [docs/deployment.md](./docs/deployment.md) — Vercel configuration and Neon activation checks
 - [docs/UI_UX_SPEC.md](./docs/UI_UX_SPEC.md) — design system
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
 

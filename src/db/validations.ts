@@ -132,7 +132,14 @@ export const communityFormSchema = createInsertSchema(community)
       .string()
       .trim()
       .transform((v) => (v === "" ? null : v))
-      .pipe(z.url("Logo must be a URL").nullable()),
+      .pipe(
+        z
+          .url({
+            protocol: /^https?$/,
+            error: "Logo must be an HTTP or HTTPS URL",
+          })
+          .nullable()
+      ),
   })
   .strict()
 
