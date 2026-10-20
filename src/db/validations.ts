@@ -2,6 +2,7 @@ import { z } from "zod"
 import { createInsertSchema } from "drizzle-zod"
 import { community, communityMember, post, profile } from "@/db/schema"
 import { parseCampusDateTime } from "@/lib/format"
+import { parseRollNumber } from "@/lib/roll-number"
 
 const optionalText = (max: number) =>
   z
@@ -176,13 +177,41 @@ export const memberFormSchema = createInsertSchema(communityMember)
   .strict()
 
 export const profileFormSchema = createInsertSchema(profile)
-  .pick({ rollNumber: true, department: true, bio: true })
+  .pick({ rollNumber: true, bio: true })
   .extend({
-    rollNumber: optionalText(30),
-    department: optionalText(60),
+    rollNumber: optionalText(30).transform((value, ctx) => {
+      if (!value) return null
+      try {
+        const parsed = parseRollNumber(value)
+        if (!parsed)
+          throw new Error(
+            "Enter a valid VIT roll number, for example 23108A0054."
+          )
+        if (!parsed.department)
+          throw new Error(
+            "Use a roll number for Bio-med, EXCS, EXTC, CMPN or IT."
+          )
+        return value.toUpperCase()
+      } catch (error) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Enter a valid roll number.",
+        })
+        return z.NEVER
+      }
+    }),
     bio: optionalText(400),
   })
   .strict()
+  .transform((data) => ({
+    ...data,
+    department: data.rollNumber
+      ? (parseRollNumber(data.rollNumber)?.department ?? null)
+      : null,
+  }))
 
 export function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Check the form and try again"

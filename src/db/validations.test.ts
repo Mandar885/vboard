@@ -102,7 +102,6 @@ describe("strict writable field boundaries", () => {
     expect(
       profileFormSchema.safeParse({
         rollNumber: "",
-        department: "",
         bio: "",
         siteRole: "super_admin",
       }).success
@@ -131,5 +130,32 @@ describe("strict writable field boundaries", () => {
         addedBy: "forged",
       }).success
     ).toBe(false)
+  })
+})
+
+describe("profileFormSchema", () => {
+  it("rejects a submitted department instead of treating it as authoritative", () => {
+    expect(
+      profileFormSchema.safeParse({
+        rollNumber: "23108A0054",
+        department: "CIVIL",
+        bio: "",
+      }).success
+    ).toBe(false)
+  })
+
+  it.each([
+    ["23101C0001", "IT"],
+    ["23102C0001", "CMPN"],
+    ["23104B0001", "EXTC"],
+    ["23105A0001", "BIOMED"],
+    ["23108B0001", "EXCS"],
+    ["23103A0001", "EXCS"],
+  ])("derives %s as %s", (rollNumber, department) => {
+    expect(profileFormSchema.parse({ rollNumber, bio: "" })).toEqual({
+      rollNumber,
+      department,
+      bio: null,
+    })
   })
 })
