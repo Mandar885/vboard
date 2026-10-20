@@ -14,7 +14,6 @@ export async function updateProfileAction(
   if (!user) return fail("Sign in first.")
   const parsed = profileFormSchema.safeParse({
     rollNumber: formData.get("rollNumber") ?? "",
-    department: formData.get("department") ?? "",
     bio: formData.get("bio") ?? "",
   })
   if (!parsed.success) return fail(firstIssue(parsed.error))
